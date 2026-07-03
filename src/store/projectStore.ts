@@ -65,6 +65,12 @@ interface ProjectState {
   addCalendarEvent: (ev: Omit<CalendarEvent, "id">) => void;
   updateCalendarEvent: (id: string, changes: Partial<CalendarEvent>) => void;
   deleteCalendarEvent: (id: string) => void;
+  // Project Modal State
+  isProjectModalOpen: boolean;
+  editingProject: Project | null;
+  openCreateProjectModal: () => void;
+  openEditProjectModal: (project: Project) => void;
+  closeProjectModal: () => void;
 
   fetchProjects: () => Promise<void>;
   createProject: (project: Omit<Project, "id">) => Promise<void>;
@@ -84,6 +90,13 @@ export const useProjectStore = create<ProjectState>()(
       savedAds: [],
       isLoading: false,
       error: null,
+
+      // Project modal state
+      isProjectModalOpen: false,
+      editingProject: null,
+      openCreateProjectModal: () => set({ isProjectModalOpen: true, editingProject: null }),
+      openEditProjectModal: (project) => set({ isProjectModalOpen: true, editingProject: project }),
+      closeProjectModal: () => set({ isProjectModalOpen: false, editingProject: null }),
 
       // Initial editor states
       editorPrompt: "",
@@ -180,9 +193,9 @@ export const useProjectStore = create<ProjectState>()(
           get().fetchSavedAds(get().activeProject!.id);
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       // Graceful fallback if tables do not exist in DB
-      console.warn("DB projects error, falling back to local memory:", err.message);
+      console.warn("DB projects error, falling back to local memory:", (err as Error).message);
       const localProjects = typeof window !== "undefined" ? localStorage.getItem("dev-projects") : null;
       const projectsList = localProjects ? JSON.parse(localProjects) : [];
       set({ projects: projectsList, isLoading: false });
@@ -220,8 +233,8 @@ export const useProjectStore = create<ProjectState>()(
       const updated = [res.data, ...get().projects];
       set({ projects: updated, activeProject: res.data, isLoading: false });
       get().fetchSavedAds(res.data.id);
-    } catch (err: any) {
-      console.warn("DB create project failed, falling back to local memory:", err.message);
+    } catch (err) {
+      console.warn("DB create project failed, falling back to local memory:", (err as Error).message);
       const newProj: Project = {
         id: `local-proj-${Date.now()}`,
         ...projData
@@ -267,8 +280,8 @@ export const useProjectStore = create<ProjectState>()(
         activeProject: get().activeProject?.id === id ? res.data : get().activeProject,
         isLoading: false 
       });
-    } catch (err: any) {
-      console.warn("DB update project failed, falling back to local memory:", err.message);
+    } catch (err) {
+      console.warn("DB update project failed, falling back to local memory:", (err as Error).message);
       const updated = get().projects.map((p) => {
         if (p.id === id) {
           return { ...p, ...projData };
@@ -319,7 +332,7 @@ export const useProjectStore = create<ProjectState>()(
       } else {
         set({ savedAds: [] });
       }
-    } catch (err: any) {
+    } catch {
       const updated = get().projects.filter((p) => p.id !== id);
       localStorage.setItem("dev-projects", JSON.stringify(updated));
       set({ 
@@ -358,8 +371,8 @@ export const useProjectStore = create<ProjectState>()(
 
       const res = await apiFetch(`/projects/${projectId}/ads`);
       set({ savedAds: res.data || [], isLoading: false });
-    } catch (err: any) {
-      console.warn("DB fetch saved ads error, falling back to local memory:", err.message);
+    } catch (err) {
+      console.warn("DB fetch saved ads error, falling back to local memory:", (err as Error).message);
       const localAds = typeof window !== "undefined" ? localStorage.getItem(`dev-ads-${projectId}`) : null;
       set({ savedAds: localAds ? JSON.parse(localAds) : [], isLoading: false });
     }
@@ -389,8 +402,8 @@ export const useProjectStore = create<ProjectState>()(
       });
       const updated = [res.data, ...get().savedAds];
       set({ savedAds: updated, isLoading: false });
-    } catch (err: any) {
-      console.warn("DB save ad failed, falling back to local memory:", err.message);
+    } catch (err) {
+      console.warn("DB save ad failed, falling back to local memory:", (err as Error).message);
       const newAd: SavedAd = {
         id: `local-ad-${Date.now()}`,
         project_id: projectId,
@@ -418,7 +431,7 @@ export const useProjectStore = create<ProjectState>()(
       await apiFetch(`/projects/${projectId}/ads/${adId}`, { method: "DELETE" });
       const updated = get().savedAds.filter((ad) => ad.id !== adId);
       set({ savedAds: updated, isLoading: false });
-    } catch (err: any) {
+    } catch {
       const updated = get().savedAds.filter((ad) => ad.id !== adId);
       localStorage.setItem(`dev-ads-${projectId}`, JSON.stringify(updated));
       set({ savedAds: updated, isLoading: false });

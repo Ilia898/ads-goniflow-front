@@ -57,7 +57,7 @@ export default function CalendarPage() {
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                        Google Calendar-ის მსგავსი სრული განრიგი. დააჭირეთ ნებისმიერ დღეს ახალი ჩანაწერის დასამატებლად.
+                        დააჭირეთ ნებისმიერ დღეს ახალი ჩანაწერის დასამატებლად.
                     </p>
                 </div>
                 <div className="flex items-center gap-2">

@@ -33,13 +33,14 @@ export default function GeneratorPage() {
         addCalendarEvent,
         updateCalendarEvent,
         setPendingCalendarEvent,
-        showNotification
+        showNotification,
+        openCreateProjectModal
     } = useProjectStore();
 
     if (!user) return null;
 
     const openCreateModal = () => {
-        // Handled via layout or state trigger, we can search if there's any trigger needed
+        openCreateProjectModal();
     };
 
     const handleActiveTabChange = (tab: string) => {

@@ -20,21 +20,51 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
         setActiveProject,
         notification,
         setNotification,
-        loadCalendarEvents
+        loadCalendarEvents,
+        isProjectModalOpen,
+        editingProject,
+        openCreateProjectModal,
+        openEditProjectModal,
+        closeProjectModal
     } = useProjectStore();
 
     const router = useRouter();
     const pathname = usePathname();
-
-    // Modal state for project creation/editing
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingProject, setEditingProject] = useState<Project | null>(null);
 
     // Dropdown toggle state
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     // Settings Modal State
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+    // Two separate states for sidebar behaviour:
+    //   isDesktop       — true when viewport is >= 1024px (sidebar always expanded, no toggle)
+    //   isMobileMenuOpen — true when mobile burger is open (<1024px only)
+    const [isDesktop, setIsDesktop] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    // Sidebar is "expanded" visually when on desktop OR when mobile burger is open
+    const sidebarExpanded = isDesktop || isMobileMenuOpen;
+
+    // Track viewport width
+    useEffect(() => {
+        const handleResize = () => {
+            const desktop = window.innerWidth >= 1024;
+            setIsDesktop(desktop);
+            if (desktop) {
+                setIsMobileMenuOpen(false); // close mobile overlay when resizing to desktop
+            }
+        };
+        handleResize();
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+    // Close mobile overlay on page navigation
+    useEffect(() => {
+        setIsMobileMenuOpen(false);
+    }, [pathname]);
+
 
     // Redirect to login if unauthenticated
     useEffect(() => {
@@ -62,14 +92,12 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
 
     // Open project modal for creation
     const openCreateModal = () => {
-        setEditingProject(null);
-        setIsModalOpen(true);
+        openCreateProjectModal();
     };
 
     // Open project modal for editing
     const openEditModal = (project: Project) => {
-        setEditingProject(project);
-        setIsModalOpen(true);
+        openEditProjectModal(project);
     };
 
     const handleProjectSubmit = async (data: { name: string; link: string; description: string; logo_url: string }) => {
@@ -81,8 +109,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                 await createProject(data);
                 useProjectStore.getState().showNotification("success", "საქმიანობა წარმატებით შეიქმნა!");
             }
-            setIsModalOpen(false);
-            setEditingProject(null);
+            closeProjectModal();
         } catch (err) {
             useProjectStore.getState().showNotification("error", "შეცდომა ოპერაციის შესრულებისას. სცადეთ თავიდან.");
             throw err;
@@ -127,225 +154,394 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
     if (!user) return null;
 
     return (
-        <div className="flex min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100 font-sans">
-            {/* Sidebar Navigation */}
-            <aside className="w-66 border-r border-slate-800 bg-slate-950/80 backdrop-blur-xl flex flex-col justify-between p-6 shrink-0">
+        <div className="flex min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100 font-sans relative overflow-x-hidden">
+            {/* Backdrop — mobile only, shown behind the expanded overlay */}
+            {isMobileMenuOpen && (
+                <div
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="fixed inset-0 bg-black/50 backdrop-blur-xs z-40 transition-opacity duration-300"
+                />
+            )}
+
+            {/*
+              Spacer (always in flow):
+              - Desktop (isDesktop): w-66 — matches the always-visible full sidebar
+              - Mobile (!isDesktop): w-20 — matches the collapsed icon sidebar; overlay never shifts this
+            */}
+            <div className={`${isDesktop ? "w-66" : "w-20"} shrink-0`} />
+
+            {/* Sidebar — always fixed, JS-controlled width */}
+            <aside className={`fixed inset-y-0 left-0 z-50 border-r border-slate-800 bg-slate-950/95 backdrop-blur-xl flex flex-col justify-between transition-all duration-300 ${
+                sidebarExpanded
+                    ? "w-66 p-6"
+                    : "w-20 px-3 py-6"
+            }`}>
                 <div className="space-y-6">
-                    {/* Brand */}
-                    <div
-                        onClick={() => router.push("/")}
-                        className="flex items-center gap-3 cursor-pointer group hover:opacity-95 transition-all"
-                        title="მთავარ გვერდზე გადასვლა"
-                    >
-                        <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 group-hover:scale-102 transition-all">
-                            <span className="font-extrabold text-white text-base">G</span>
+                    {/* Brand & Toggle Button */}
+                    {sidebarExpanded ? (
+                        <div className="flex items-center justify-between gap-2 animate-fade-in">
+                            <div
+                                onClick={() => router.push("/")}
+                                className="flex items-center gap-3 cursor-pointer group hover:opacity-95 transition-all min-w-0"
+                                title="მთავარ გვერდზე გადასვლა"
+                            >
+                                <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 group-hover:scale-102 transition-all shrink-0">
+                                    <span className="font-extrabold text-white text-base">G</span>
+                                </div>
+                                <div className="truncate">
+                                    <span className="font-black text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent group-hover:text-indigo-200 transition-colors block leading-none">GoniFlow</span>
+                                    <span className="text-[10px] text-indigo-400 font-bold block leading-none mt-1">POST WORKSPACE</span>
+                                </div>
+                            </div>
+
+                            {/* Collapse button — mobile only, shown inside expanded mobile overlay */}
+                            {!isDesktop && (
+                                <button
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className="p-1.5 text-slate-500 hover:text-white rounded-lg hover:bg-slate-900 transition-colors shrink-0"
+                                    title="მენიუს შეკუმშვა"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                                    </svg>
+                                </button>
+                            )}
                         </div>
-                        <div>
-                            <span className="font-black text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent group-hover:text-indigo-200 transition-colors">GoniFlow</span>
-                            <span className="text-[10px] text-indigo-400 font-bold block leading-none">POST WORKSPACE</span>
+                    ) : (
+                        /* Burger icon — mobile only, shown in collapsed w-20 sidebar */
+                        <div className="flex justify-center animate-fade-in">
+                            <button
+                                onClick={() => setIsMobileMenuOpen(true)}
+                                className="p-2.5 text-slate-400 hover:text-white rounded-xl bg-slate-900/60 border border-slate-800/80 hover:bg-slate-900 transition-all hover:scale-105"
+                                title="მენიუს გაშლა"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                                </svg>
+                            </button>
                         </div>
-                    </div>
+                    )}
 
                     {/* Project/Business Selector */}
-                    <div className="relative pt-2">
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">აქტიური საქმიანობა</label>
-                        <button
-                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                            className="w-full flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-900/40 text-left text-xs font-semibold transition-all"
-                        >
-                            <span className="truncate flex items-center gap-2">
-                                {activeProject ? (
-                                    <>
-                                        <span className="h-2 w-2 rounded-full bg-indigo-500"></span>
-                                        {activeProject.name}
-                                    </>
-                                ) : (
-                                    <span className="text-slate-500">პროექტი არ არის</span>
-                                )}
-                            </span>
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 text-slate-500">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                            </svg>
-                        </button>
+                    {sidebarExpanded ? (
+                        <div className="relative z-30 pt-2 animate-fade-in">
+                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">აქტიური საქმიანობა</label>
+                            <button
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                className="w-full flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-900/40 text-left text-xs font-semibold transition-all"
+                            >
+                                <span className="truncate flex items-center gap-2">
+                                    {activeProject ? (
+                                        <>
+                                            <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                                            {activeProject.name}
+                                        </>
+                                    ) : (
+                                        <span className="text-slate-500">პროექტი არ არის</span>
+                                    )}
+                                </span>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 text-slate-500">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                </svg>
+                            </button>
 
-                        {/* Project Select Dropdown Menu */}
-                        {isDropdownOpen && (
-                            <div className="absolute left-0 right-0 mt-2 z-30 rounded-xl border border-slate-800 bg-slate-950 p-1.5 shadow-2xl space-y-1">
-                                {projects.map((p) => (
-                                    <div key={p.id} className="flex items-center justify-between gap-0.5 hover:bg-slate-900 rounded-lg group px-1">
-                                        <button
-                                            onClick={() => {
-                                                setActiveProject(p);
-                                                setIsDropdownOpen(false);
-                                            }}
-                                            className="flex-1 text-left py-2 text-xs font-medium text-slate-200 truncate"
-                                        >
-                                            {p.name}
-                                        </button>
+                            {/* Project Select Dropdown Menu */}
+                            {isDropdownOpen && (
+                                <div className="absolute left-0 right-0 mt-2 z-50 rounded-xl border border-slate-800 bg-[#090d16] p-1.5 shadow-2xl space-y-1">
+                                    {projects.map((p) => (
+                                        <div key={p.id} className="flex items-center justify-between gap-0.5 hover:bg-slate-900 rounded-lg group px-1">
+                                            <button
+                                                onClick={() => {
+                                                    setActiveProject(p);
+                                                    setIsDropdownOpen(false);
+                                                }}
+                                                className="flex-1 text-left py-2 text-xs font-medium text-slate-200 truncate"
+                                            >
+                                                {p.name}
+                                            </button>
 
-                                        {/* Edit Project Button */}
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                openEditModal(p);
-                                                setIsDropdownOpen(false);
-                                            }}
-                                            className="p-1.5 text-slate-500 hover:text-indigo-400 transition-colors opacity-0 group-hover:opacity-100"
-                                            title="რედაქტირება"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.83 20.062a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                            </svg>
-                                        </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openEditModal(p);
+                                                    setIsDropdownOpen(false);
+                                                }}
+                                                className="p-1.5 text-slate-500 hover:text-indigo-400 transition-colors opacity-0 group-hover:opacity-100"
+                                                title="რედაქტირება"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.83 20.062a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                                </svg>
+                                            </button>
 
-                                        {/* Delete Project Button */}
-                                        <button
-                                            onClick={(e) => handleDeleteProject(e, p.id)}
-                                            className="p-1.5 text-slate-500 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
-                                            title="წაშლა"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                ))}
-                                <div className="border-t border-slate-800 my-1"></div>
-                                <button
-                                    onClick={openCreateModal}
-                                    className="w-full text-center px-3 py-2 text-xs font-bold text-indigo-400 hover:bg-indigo-950/20 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                                            <button
+                                                onClick={(e) => handleDeleteProject(e, p.id)}
+                                                className="p-1.5 text-slate-500 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
+                                                title="წაშლა"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <div className="border-t border-slate-800 my-1"></div>
+                                    <button
+                                        onClick={openCreateModal}
+                                        className="w-full text-center px-3 py-2 text-xs font-bold text-indigo-400 hover:bg-indigo-950/20 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                                    >
+                                        ➕ ახალი საქმიანობა
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex justify-center pt-2 animate-fade-in">
+                            {activeProject ? (
+                                <img
+                                    src={activeProject.logo_url}
+                                    alt={activeProject.name}
+                                    onClick={() => setIsMobileMenuOpen(true)}
+                                    className="w-10 h-10 rounded-xl object-cover border border-slate-800 shadow-md bg-slate-900 cursor-pointer hover:border-indigo-500 transition-all hover:scale-105"
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=100&auto=format&fit=crop&q=80";
+                                    }}
+                                    title={`აქტიური საქმიანობა: ${activeProject.name} (გასაშლელად დააჭირეთ)`}
+                                />
+                            ) : (
+                                <div
+                                    onClick={() => setIsMobileMenuOpen(true)}
+                                    className="w-10 h-10 rounded-xl border border-slate-800 bg-slate-950/50 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-slate-900 transition-all text-sm"
+                                    title="პროექტი არ არის (გასაშლელად დააჭირეთ)"
                                 >
-                                    ➕ ახალი საქმიანობა
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                                    💼
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Navigation Links */}
                     <nav className="space-y-1.5 pt-2">
-                        {/* Dashboard */}
-                        <Link
-                            href="/profile/dashboard"
-                            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                                pathname === "/profile/dashboard"
-                                    ? "bg-violet-600 text-white shadow-lg shadow-violet-600/15"
-                                    : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-                            }`}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
-                            </svg>
-                            Dashboard
-                        </Link>
+                        {sidebarExpanded ? (
+                            <div className="space-y-1.5 animate-fade-in">
+                                {/* Dashboard */}
+                                <Link
+                                    href="/profile/dashboard"
+                                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                                        pathname === "/profile/dashboard"
+                                            ? "bg-violet-600 text-white shadow-lg shadow-violet-600/15"
+                                            : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                                    }`}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 shrink-0">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+                                    </svg>
+                                    Dashboard
+                                </Link>
 
-                        {/* Calendar / Schedule */}
-                        <Link
-                            href="/profile/calendar"
-                            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                                pathname === "/profile/calendar"
-                                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/15"
-                                    : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-                            }`}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                            </svg>
-                            განრიგი
-                            {savedAds.length > 0 && (
-                                <span className="ml-auto px-1.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                    {savedAds.length}
-                                </span>
-                            )}
-                        </Link>
-
-                        {/* Post Generator */}
-                        <div>
-                            <Link
-                                href="/profile/generator"
-                                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                                    pathname === "/profile/generator"
-                                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/15"
-                                        : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-                                }`}
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 21l8.982-8.983m-10.43 3.44 1.34-3.58 3.58-1.34-1.34-3.58-3.58 1.34ZM18 13.677 19.22 12.28a.2.2 0 0 0-.28-.28l-1.397 1.397a8.25 8.25 0 1 0-1.954 1.954l1.397-1.397a.2.2 0 0 0-.28-.28L15.32 18H18Z" />
-                                </svg>
-                                პოსტის შექმნა
-                            </Link>
-                        </div>
-
-                        {/* Platform Library Links */}
-                        <div className="space-y-1">
-                            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 px-4 mb-2">შენახული პოსტები</span>
-
-                            {([
-                                { id: "facebook",  label: "Facebook",   icon: "🔵", activeColor: "bg-blue-600/20 text-blue-300 border border-blue-500/30",  hoverColor: "hover:bg-blue-900/20 hover:text-blue-300",  badgeCls: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-                                { id: "instagram", label: "Instagram",  icon: "📸", activeColor: "bg-pink-600/20 text-pink-300 border border-pink-500/30",  hoverColor: "hover:bg-pink-900/20 hover:text-pink-300",  badgeCls: "bg-pink-500/15 text-pink-400 border-pink-500/30" },
-                                { id: "linkedin",  label: "LinkedIn",   icon: "💼", activeColor: "bg-teal-600/20 text-teal-300 border border-teal-500/30",  hoverColor: "hover:bg-teal-900/20 hover:text-teal-300",  badgeCls: "bg-teal-500/15 text-teal-400 border-teal-500/30" },
-                                { id: "x",         label: "X (Twitter)",icon: "🐦", activeColor: "bg-slate-700/40 text-slate-200 border border-slate-600/40", hoverColor: "hover:bg-slate-800/40 hover:text-slate-200", badgeCls: "bg-slate-700/30 text-slate-300 border-slate-600/40" },
-                            ] as const).map((p) => {
-                                const count = getSavedCountByPlatform(p.id);
-                                const isPlatformActive = pathname === `/profile/library/${p.id}`;
-                                return (
-                                    <Link
-                                        key={p.id}
-                                        href={`/profile/library/${p.id}`}
-                                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                                            isPlatformActive ? p.activeColor : `text-slate-400 ${p.hoverColor}`
-                                        }`}
-                                    >
-                                        <span className="flex items-center gap-2">
-                                            <span>{p.icon}</span>
-                                            {p.label}
+                                {/* Calendar / Schedule */}
+                                <Link
+                                    href="/profile/calendar"
+                                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                                        pathname === "/profile/calendar"
+                                            ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/15"
+                                            : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                                    }`}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 shrink-0">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                                    </svg>
+                                    განრიგი
+                                    {savedAds.length > 0 && (
+                                        <span className="ml-auto px-1.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                            {savedAds.length}
                                         </span>
-                                        {count > 0 ? (
-                                            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black border ${isPlatformActive ? p.badgeCls : "bg-slate-900 text-slate-500 border-slate-800"}`}>
-                                                {count}
-                                            </span>
-                                        ) : (
-                                            <span className="text-[9px] text-slate-700">—</span>
-                                        )}
-                                    </Link>
-                                );
-                            })}
-                        </div>
+                                    )}
+                                </Link>
+
+                                {/* Post Generator */}
+                                <Link
+                                    href="/profile/generator"
+                                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                                        pathname === "/profile/generator"
+                                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/15"
+                                            : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                                    }`}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 shrink-0">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 21l8.982-8.983m-10.43 3.44 1.34-3.58 3.58-1.34-1.34-3.58-3.58 1.34ZM18 13.677 19.22 12.28a.2.2 0 0 0-.28-.28l-1.397 1.397a8.25 8.25 0 1 0-1.954 1.954l1.397-1.397a.2.2 0 0 0-.28-.28L15.32 18H18Z" />
+                                    </svg>
+                                    პოსტის შექმნა
+                                </Link>
+
+                                {/* Platform Library Links */}
+                                <div className="space-y-1 pt-2">
+                                    <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 px-4 mb-2">შენახული პოსტები</span>
+
+                                    {([
+                                        { id: "facebook",  label: "Facebook",   icon: "🔵", activeColor: "bg-blue-600/20 text-blue-300 border border-blue-500/30",  hoverColor: "hover:bg-blue-900/20 hover:text-blue-300",  badgeCls: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+                                        { id: "instagram", label: "Instagram",  icon: "📸", activeColor: "bg-pink-600/20 text-pink-300 border border-pink-500/30",  hoverColor: "hover:bg-pink-900/20 hover:text-pink-300",  badgeCls: "bg-pink-500/15 text-pink-400 border-pink-500/30" },
+                                        { id: "linkedin",  label: "LinkedIn",   icon: "💼", activeColor: "bg-teal-600/20 text-teal-300 border border-teal-500/30",  hoverColor: "hover:bg-teal-900/20 hover:text-teal-300",  badgeCls: "bg-teal-500/15 text-teal-400 border-teal-500/30" },
+                                        { id: "x",         label: "X (Twitter)",icon: "🐦", activeColor: "bg-slate-700/40 text-slate-200 border border-slate-600/40", hoverColor: "hover:bg-slate-800/40 hover:text-slate-200", badgeCls: "bg-slate-700/30 text-slate-300 border-slate-600/40" },
+                                    ] as const).map((p) => {
+                                        const count = getSavedCountByPlatform(p.id);
+                                        const isPlatformActive = pathname === `/profile/library/${p.id}`;
+                                        return (
+                                            <Link
+                                                key={p.id}
+                                                href={`/profile/library/${p.id}`}
+                                                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                                                    isPlatformActive ? p.activeColor : `text-slate-400 ${p.hoverColor}`
+                                                }`}
+                                            >
+                                                <span className="flex items-center gap-2">
+                                                    <span>{p.icon}</span>
+                                                    {p.label}
+                                                </span>
+                                                {count > 0 ? (
+                                                    <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black border ${isPlatformActive ? p.badgeCls : "bg-slate-900 text-slate-500 border-slate-800"}`}>
+                                                        {count}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[9px] text-slate-700">—</span>
+                                                )}
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-3 flex flex-col items-center animate-fade-in">
+                                {/* Dashboard Icon */}
+                                <Link
+                                    href="/profile/dashboard"
+                                    className={`p-3 rounded-xl transition-all ${
+                                        pathname === "/profile/dashboard"
+                                            ? "bg-violet-600 text-white shadow-lg shadow-violet-600/15"
+                                            : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                                    }`}
+                                    title="Dashboard"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+                                    </svg>
+                                </Link>
+
+                                {/* Calendar Icon */}
+                                <Link
+                                    href="/profile/calendar"
+                                    className={`p-3 rounded-xl transition-all relative ${
+                                        pathname === "/profile/calendar"
+                                            ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/15"
+                                            : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                                    }`}
+                                    title="განრიგი"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                                    </svg>
+                                    {savedAds.length > 0 && (
+                                        <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black bg-emerald-500 text-slate-950 shadow-md">
+                                            {savedAds.length}
+                                        </span>
+                                    )}
+                                </Link>
+
+                                {/* Generator Icon */}
+                                <Link
+                                    href="/profile/generator"
+                                    className={`p-3 rounded-xl transition-all ${
+                                        pathname === "/profile/generator"
+                                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/15"
+                                            : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                                    }`}
+                                    title="პოსტის შექმნა"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 21l8.982-8.983m-10.43 3.44 1.34-3.58 3.58-1.34-1.34-3.58-3.58 1.34ZM18 13.677 19.22 12.28a.2.2 0 0 0-.28-.28l-1.397 1.397a8.25 8.25 0 1 0-1.954 1.954l1.397-1.397a.2.2 0 0 0-.28-.28L15.32 18H18Z" />
+                                    </svg>
+                                </Link>
+
+                                <div className="w-8 h-px bg-slate-800/80 my-1"></div>
+
+                                {/* Platform Library Icons */}
+                                {([
+                                    { id: "facebook",  label: "Facebook",   icon: "🔵" },
+                                    { id: "instagram", label: "Instagram",  icon: "📸" },
+                                    { id: "linkedin",  label: "LinkedIn",   icon: "💼" },
+                                    { id: "x",         label: "X (Twitter)",icon: "🐦" },
+                                ] as const).map((p) => {
+                                    const count = getSavedCountByPlatform(p.id);
+                                    const isPlatformActive = pathname === `/profile/library/${p.id}`;
+                                    return (
+                                        <Link
+                                            key={p.id}
+                                            href={`/profile/library/${p.id}`}
+                                            className={`p-3 rounded-xl transition-all relative ${
+                                                isPlatformActive ? "bg-slate-800 text-white border border-slate-700/50" : "text-slate-400 hover:bg-slate-900"
+                                            }`}
+                                            title={p.label}
+                                        >
+                                            <span className="text-base">{p.icon}</span>
+                                            {count > 0 && (
+                                                <span className="absolute -top-1 -right-1 px-1 py-0.5 rounded-full text-[8px] font-black bg-indigo-500 text-white shadow-md">
+                                                    {count}
+                                                </span>
+                                            )}
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </nav>
                 </div>
 
-                {/* Bottom User Section with Settings Cog */}
-                <div className="border-t border-slate-800 pt-4 flex items-center justify-between gap-2.5">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-8 w-8 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white text-xs shrink-0">
-                            {user.email.charAt(0).toUpperCase()}
+                {/* Bottom User Section */}
+                {sidebarExpanded ? (
+                    <div className="border-t border-slate-800 pt-4 flex items-center justify-between gap-2.5 animate-fade-in">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className="h-8 w-8 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white text-xs shrink-0">
+                                {user.email.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-xs font-semibold text-white truncate">{user.email.split("@")[0]}</p>
+                                <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
+                            </div>
                         </div>
-                        <div className="min-w-0">
-                            <p className="text-xs font-semibold text-white truncate">{user.email.split("@")[0]}</p>
-                            <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
-                        </div>
-                    </div>
 
-                    {/* Settings Cog Button */}
-                    <button
-                        onClick={() => setIsSettingsOpen(true)}
-                        className="p-2 border border-slate-800 bg-slate-950/50 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl transition-all"
-                        title="ანგარიშის პარამეტრები"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.991l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                        </svg>
-                    </button>
-                </div>
+                        <button
+                            onClick={() => setIsSettingsOpen(true)}
+                            className="p-2 border border-slate-800 bg-slate-950/50 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl transition-all shrink-0"
+                            title="ანგარიშის პარამეტრები"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.991l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                            </svg>
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex justify-center border-t border-slate-800 pt-4 animate-fade-in">
+                        <button
+                            onClick={() => setIsSettingsOpen(true)}
+                            className="p-2.5 border border-slate-800 bg-slate-950/50 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl transition-all"
+                            title="ანგარიშის პარამეტრები"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.991l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                            </svg>
+                        </button>
+                    </div>
+                )}
             </aside>
 
             {/* Main Content Area */}
-            <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+            <main className="flex-1 flex flex-col min-w-0 overflow-x-hidden overflow-y-auto">
                 {/* Header */}
-                <header className="relative z-30 h-20 border-b border-slate-800 bg-slate-950/40 backdrop-blur-xl px-8 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-4 min-w-0">
+                <header className="relative z-30 h-20 border-b border-slate-800 bg-slate-950/40 backdrop-blur-xl px-4 sm:px-8 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                         {/* Page Title / Section */}
-                        <div className="flex flex-col border-r border-slate-800 pr-5 shrink-0">
+                        <div className="flex flex-col border-r border-slate-800 pr-3 sm:pr-5 shrink-0">
                             <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500">Workspace</span>
                             <h1 className="text-sm font-extrabold text-white mt-0.5">
                                 {pageTitle}
@@ -353,20 +549,20 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                         </div>
 
                         {activeProject && (
-                            <div className="flex items-center gap-3 min-w-0 pl-1">
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 pl-1">
                                 {/* Project Logo */}
                                 <img
                                     src={activeProject.logo_url}
                                     alt="Logo"
-                                    className="w-10 h-10 rounded-xl object-cover border border-slate-800 shadow-md shrink-0 bg-slate-900"
+                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl object-cover border border-slate-800 shadow-md shrink-0 bg-slate-900"
                                     onError={(e) => {
                                         (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=100&auto=format&fit=crop&q=80";
                                     }}
                                 />
                                 {/* Project Details Column */}
                                 <div className="flex flex-col min-w-0 leading-tight">
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-extrabold text-xs text-white truncate max-w-[150px]">
+                                    <div className="flex items-center gap-1.5 sm:gap-2">
+                                        <span className="font-extrabold text-xs text-white truncate max-w-[80px] sm:max-w-[150px]">
                                             {activeProject.name}
                                         </span>
                                         {activeProject.link && (
@@ -374,7 +570,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                                                 href={activeProject.link.startsWith("http") ? activeProject.link : `https://${activeProject.link}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="text-slate-500 hover:text-indigo-400 transition-colors flex items-center"
+                                                className="text-slate-500 hover:text-indigo-400 transition-colors flex items-center shrink-0"
                                                 title="საიტის გახსნა"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
@@ -384,18 +580,18 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                                         )}
                                         <button
                                             onClick={() => openEditModal(activeProject)}
-                                            className="px-2 py-0.5 ml-1 rounded-lg border border-slate-800 bg-slate-900/60 hover:bg-slate-900 hover:border-indigo-500/40 hover:text-indigo-400 text-[10px] font-bold text-slate-400 transition-all flex items-center gap-1 shrink-0"
+                                            className="px-2 py-0.5 sm:ml-1 rounded-lg border border-slate-800 bg-slate-900/60 hover:bg-slate-900 hover:border-indigo-500/40 hover:text-indigo-400 text-[10px] font-bold text-slate-400 transition-all flex items-center gap-1 shrink-0"
                                             title="საქმიანობის რედაქტირება"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-2.5 h-2.5">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.83 20.062a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                                             </svg>
-                                            რედაქტირება
+                                            <span className="hidden sm:inline">რედაქტირება</span>
                                         </button>
                                     </div>
 
                                     {/* Subtitle / Context description with Custom Hover Tooltip */}
-                                    <div className="relative group shrink-0 min-w-0 max-w-[280px] mt-1">
+                                    <div className="relative group shrink-0 min-w-0 max-w-[100px] sm:max-w-[280px] mt-1">
                                         <span className="text-[10px] text-slate-500 italic truncate block cursor-help">
                                             კონტექსტი: {activeProject.description || "აღწერის გარეშე"}
                                         </span>
@@ -411,26 +607,24 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                             </div>
                         )}
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Supabase</span>
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider hidden sm:inline">Supabase</span>
                     </div>
                 </header>
 
+
                 {/* Workspace Tabs Content */}
-                <div className="flex-1 p-8">
+                <div className="flex-1 p-3 sm:p-5 lg:p-8">
                     {children}
                 </div>
             </main>
 
             {/* Project Creation / Editing Modal Overlay */}
             <ProjectModal
-                isOpen={isModalOpen}
+                isOpen={isProjectModalOpen}
                 project={editingProject}
-                onClose={() => {
-                    setIsModalOpen(false);
-                    setEditingProject(null);
-                }}
+                onClose={closeProjectModal}
                 onSubmit={handleProjectSubmit}
             />
 

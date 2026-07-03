@@ -19,7 +19,8 @@ export default function LibraryPage({ params }: { params: Promise<{ platform: st
         setEditorImagePrompt,
         setEditorUploadedImage,
         setEditorUploadedImageName,
-        setEditorGeneratedAd
+        setEditorGeneratedAd,
+        openCreateProjectModal
     } = useProjectStore();
 
     const handleLoadAdToGenerator = (ad: SavedAd) => {
@@ -53,7 +54,7 @@ export default function LibraryPage({ params }: { params: Promise<{ platform: st
     };
 
     const openCreateModal = () => {
-        // Controlled via layout project selector
+        openCreateProjectModal();
     };
 
     return (

@@ -384,13 +384,13 @@ export default function GoniflowCalendar({
                   onNavigateToGenerator(quickModal.date + "T" + quickModal.time + ":00");
                   setQuickModal(null);
                 }}
-                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-indigo-600/15 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-indigo-600/15 transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2"
               >
                 🚀 პოსტის შექმნა
               </button>
               <button
                 onClick={() => setQuickModal(null)}
-                className="w-full py-2 border border-slate-700 text-slate-400 font-semibold text-xs rounded-xl hover:bg-slate-900 transition-colors"
+                className="w-full py-2.5 border border-slate-800 text-slate-400 font-bold text-xs rounded-xl hover:bg-slate-900/60 hover:text-white transition-all"
               >
                 გაუქმება
               </button>
@@ -462,14 +462,14 @@ export default function GoniflowCalendar({
                     openEdit(detail.event);
                   }
                 }}
-                className="flex-1 py-2 text-xs font-bold rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 transition-colors flex items-center justify-center gap-1"
+                className="flex-1 py-2.5 text-xs font-bold rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-900 hover:text-white text-slate-200 transition-colors flex items-center justify-center gap-1.5"
               >
                 ✏️ რედაქტირება
               </button>
               {/* COPY BUTTON */}
               <button
                 onClick={() => startCopy(detail.event)}
-                className="flex-1 py-2 text-xs font-bold rounded-xl border border-sky-800/50 bg-sky-950/40 hover:bg-sky-950/80 text-sky-300 transition-colors flex items-center justify-center gap-1"
+                className="flex-1 py-2.5 text-xs font-bold rounded-xl border border-sky-500/25 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 transition-colors flex items-center justify-center gap-1.5"
               >
                 📋 კოპირება
               </button>
@@ -481,7 +481,7 @@ export default function GoniflowCalendar({
                 onDeleteEvent(detail.event.id);
                 setDetail(null);
               }}
-              className="w-full py-2 text-xs font-bold rounded-xl text-rose-400 hover:bg-rose-950/30 border border-transparent hover:border-rose-900/50 transition-colors"
+              className="w-full py-2.5 text-xs font-bold rounded-xl text-rose-400 bg-rose-500/5 hover:bg-rose-500/15 border border-rose-500/20 hover:border-rose-500/40 transition-colors"
             >
               🗑 განრიგიდან წაშლა
             </button>
@@ -547,11 +547,11 @@ export default function GoniflowCalendar({
 
             <div className="flex gap-3">
               <button onClick={() => setEditModal(null)}
-                className="flex-1 py-3 border border-slate-800 text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-900 transition-colors">
+                className="flex-1 py-2.5 border border-slate-800 text-slate-400 font-bold rounded-xl text-xs hover:bg-slate-900/60 hover:text-white transition-all">
                 გაუქმება
               </button>
               <button onClick={saveEdit} disabled={!editDate}
-                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg transition-colors disabled:opacity-50">
+                className="flex-1 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-indigo-600/15 transition-all active:scale-[0.98] disabled:opacity-50">
                 ✓ შენახვა
               </button>
             </div>
@@ -604,11 +604,11 @@ export default function GoniflowCalendar({
 
             <div className="flex gap-3">
               <button onClick={() => setCopySource(null)}
-                className="flex-1 py-2.5 border border-slate-800 text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-900 transition-colors">
+                className="flex-1 py-2.5 border border-slate-800 text-slate-400 font-bold rounded-xl text-xs hover:bg-slate-900/60 hover:text-white transition-all">
                 გაუქმება
               </button>
               <button onClick={confirmCopy} disabled={!copyDate}
-                className="flex-1 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl text-xs transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                className="flex-1 py-2.5 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-sky-600/15 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5">
                 📋 კოპირება
               </button>
             </div>
@@ -653,11 +653,11 @@ export default function GoniflowCalendar({
 
             <div className="flex gap-3">
               <button onClick={() => setDayPicker(null)}
-                className="flex-1 py-2.5 border border-slate-800 text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-900 transition-colors">
+                className="flex-1 py-2.5 border border-slate-800 text-slate-400 font-bold rounded-xl text-xs hover:bg-slate-900/60 hover:text-white transition-all">
                 გაუქმება
               </button>
               <button onClick={confirmPending} disabled={!dpDate}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-emerald-600/15 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5">
                 ✓ კალენდარში დამატება
               </button>
             </div>
@@ -676,22 +676,97 @@ export default function GoniflowCalendar({
           --fc-list-event-hover-bg-color: rgba(30,41,59,0.8);
           font-family: var(--font-sans, system-ui, sans-serif);
         }
+        .fc-goniflow .fc-header-toolbar {
+          display: flex !important;
+          flex-direction: row !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+          gap: 0.75rem !important;
+          padding: 1rem !important;
+          background: rgba(15, 23, 42, 0.2) !important;
+          border-bottom: 1px solid rgba(51, 65, 85, 0.3) !important;
+          margin-bottom: 0 !important;
+        }
+        @media (max-width: 768px) {
+          .fc-goniflow .fc-header-toolbar {
+            flex-direction: column !important;
+            gap: 0.6rem !important;
+            padding: 0.75rem !important;
+          }
+          .fc-goniflow .fc-toolbar-chunk {
+            display: flex !important;
+            justify-content: center !important;
+            width: 100% !important;
+          }
+        }
+        .fc-goniflow .fc-toolbar-chunk {
+          display: flex !important;
+          align-items: center !important;
+          gap: 0.5rem !important;
+          flex-wrap: nowrap !important;
+        }
         .fc-goniflow .fc-toolbar-title {
           font-size: 1rem; font-weight: 800; color: #f1f5f9; letter-spacing: -0.01em;
         }
-        .fc-goniflow .fc-button {
-          background: rgba(30,41,59,0.8) !important;
-          border: 1px solid rgba(51,65,85,0.7) !important;
-          color: #94a3b8 !important;
-          font-size: 0.7rem !important; font-weight: 700 !important;
-          padding: 0.35rem 0.75rem !important; border-radius: 0.625rem !important;
-          transition: all 0.15s !important; box-shadow: none !important;
+        .fc-goniflow .fc-button-group {
+          display: inline-flex !important;
+          gap: 0.4rem !important;
         }
-        .fc-goniflow .fc-button:hover { background: rgba(51,65,85,0.9) !important; color: #e2e8f0 !important; }
+        .fc-goniflow .fc-button-group > .fc-button {
+          border-radius: 12px !important;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+        }
+        @media (max-width: 480px) {
+          .fc-goniflow .fc-button-group {
+            gap: 0.25rem !important;
+          }
+          .fc-goniflow .fc-button-group > .fc-button {
+            border-radius: 8px !important;
+          }
+        }
+        .fc-goniflow .fc-button {
+          background: rgba(15, 23, 42, 0.6) !important;
+          backdrop-filter: blur(12px) !important;
+          border: 1px solid rgba(255, 255, 255, 0.08) !important;
+          color: #94a3b8 !important;
+          font-size: 0.75rem !important;
+          font-weight: 600 !important;
+          padding: 0.5rem 0.9rem !important;
+          border-radius: 12px !important;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+        }
+        @media (max-width: 480px) {
+          .fc-goniflow .fc-button {
+            padding: 0.4rem 0.65rem !important;
+            font-size: 0.7rem !important;
+            border-radius: 8px !important;
+          }
+        }
+        .fc-goniflow .fc-button:hover {
+          background: rgba(30, 41, 59, 0.8) !important;
+          border-color: rgba(99, 102, 241, 0.35) !important;
+          color: #ffffff !important;
+          transform: translateY(-0.5px);
+          box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.1), 0 4px 6px -2px rgba(99, 102, 241, 0.05) !important;
+        }
         .fc-goniflow .fc-button-active,
         .fc-goniflow .fc-button-primary:not(:disabled).fc-button-active {
-          background: rgba(99,102,241,0.2) !important;
-          border-color: rgba(99,102,241,0.5) !important; color: #a5b4fc !important;
+          background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(139, 92, 246, 0.25) 100%) !important;
+          border-color: rgba(99, 102, 241, 0.6) !important;
+          color: #a5b4fc !important;
+          box-shadow: 0 0 12px rgba(99, 102, 241, 0.2) !important;
+        }
+        .fc-goniflow .fc-button:focus {
+          box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4) !important;
+        }
+        .fc-goniflow .fc-prev-button,
+        .fc-goniflow .fc-next-button {
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          padding: 0.5rem 0.75rem !important;
         }
         .fc-goniflow .fc-col-header-cell { background: rgba(15,23,42,0.6); padding: 0.5rem 0; }
         .fc-goniflow .fc-col-header-cell-cushion {

@@ -52,8 +52,8 @@ export const useAuthStore = create<AuthState>((set) => ({
                 isAuthenticated: true,
                 isLoading: false,
             });
-        } catch (err: any) {
-            set({ error: err.message, isLoading: false, isAuthenticated: false });
+        } catch (err) {
+            set({ error: (err as Error).message, isLoading: false, isAuthenticated: false });
             throw err;
         }
     },
@@ -66,8 +66,8 @@ export const useAuthStore = create<AuthState>((set) => ({
                 body: JSON.stringify({ email, password }),
             });
             set({ isLoading: false });
-        } catch (err: any) {
-            set({ error: err.message, isLoading: false });
+        } catch (err) {
+            set({ error: (err as Error).message, isLoading: false });
             throw err;
         }
     },
@@ -83,10 +83,10 @@ export const useAuthStore = create<AuthState>((set) => ({
             await apiFetch("/auth/logout", {
                 method: "POST",
             });
+        } catch (err) {
+            console.warn("Backend logout failed, clearing local session anyway:", err);
+        } finally {
             set({ user: null, isAuthenticated: false, isLoading: false });
-        } catch (err: any) {
-            set({ error: err.message, isLoading: false });
-            throw err;
         }
     },
 
@@ -98,8 +98,8 @@ export const useAuthStore = create<AuthState>((set) => ({
                 body: JSON.stringify({ email, redirectTo }),
             });
             set({ isLoading: false });
-        } catch (err: any) {
-            set({ error: err.message, isLoading: false });
+        } catch (err) {
+            set({ error: (err as Error).message, isLoading: false });
             throw err;
         }
     },
@@ -112,8 +112,8 @@ export const useAuthStore = create<AuthState>((set) => ({
                 body: JSON.stringify({ newPassword }),
             });
             set({ isLoading: false });
-        } catch (err: any) {
-            set({ error: err.message, isLoading: false });
+        } catch (err) {
+            set({ error: (err as Error).message, isLoading: false });
             throw err;
         }
     },
@@ -135,7 +135,7 @@ export const useAuthStore = create<AuthState>((set) => ({
                 isAuthenticated: true,
                 isLoading: false,
             });
-        } catch (err: any) {
+        } catch {
             set({
                 user: null,
                 isAuthenticated: false,

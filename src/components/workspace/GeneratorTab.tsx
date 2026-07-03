@@ -219,9 +219,9 @@ export default function GeneratorTab({
     }
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start h-full">
             {/* Left: Input Form */}
-            <div className="glass-panel rounded-2xl p-6 space-y-6">
+            <div className="glass-panel rounded-2xl p-4 sm:p-6 space-y-5 sm:space-y-6">
                 {/* ── Calendar target date banner ── */}
                 {scheduleTargetDate && (
                     <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/8 animate-pulse-once">
@@ -402,7 +402,7 @@ export default function GeneratorTab({
                 {/* Platform Selector */}
                 <div className="space-y-2">
                     <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400">სოციალური ქსელი</span>
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
                         {[
                             { id: "facebook", name: "Facebook", color: "hover:border-blue-500/40 hover:bg-blue-500/5" },
                             { id: "instagram", name: "Instagram", color: "hover:border-pink-500/40 hover:bg-pink-500/5" },
@@ -427,7 +427,7 @@ export default function GeneratorTab({
                 {/* Tone of Voice Selector */}
                 <div className="space-y-2">
                     <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400">ტონი (Tone of Voice)</span>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
                         {[
                             { id: "professional", name: "💼 ოფიციალური" },
                             { id: "friendly", name: "👋 მეგობრული" },
@@ -530,7 +530,7 @@ export default function GeneratorTab({
             </div>
 
             {/* Right: Live Preview Panel */}
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
                 <div className="flex items-center justify-between">
                     <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">რეალური Live Preview</h2>
                     {generatedAd && (
@@ -569,7 +569,7 @@ export default function GeneratorTab({
                     )}
                 </div>
 
-                <div className="glass-panel rounded-2xl p-6 min-h-[300px] flex flex-col justify-center">
+                <div className="glass-panel rounded-2xl p-4 sm:p-6 min-h-[220px] sm:min-h-[300px] flex flex-col justify-center">
                     {isGenerating ? (
                         <div className="flex flex-col items-center justify-center py-12 gap-4">
                             <div className="relative w-12 h-12 flex items-center justify-center">
@@ -579,11 +579,13 @@ export default function GeneratorTab({
                             <span className="text-slate-400 text-xs font-semibold animate-pulse">AI მუშაობს კამპანიის ტექსტზე...</span>
                         </div>
                     ) : (
-                        <SocialPreview
-                            platform={platform}
-                            ad={generatedAd}
-                            userEmail={userEmail}
-                        />
+                        <div className="w-full max-w-[420px] mx-auto">
+                            <SocialPreview
+                                platform={platform}
+                                ad={generatedAd}
+                                userEmail={userEmail}
+                            />
+                        </div>
                     )}
                 </div>
             </div>
