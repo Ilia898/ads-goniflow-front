@@ -5,6 +5,7 @@ import { Project, SavedAd } from "../../store/projectStore";
 import { generateMockAd, GeneratedAd } from "../../utils/mockGenerator";
 import SocialPreview from "../SocialPreview";
 import { CalendarEvent } from "../GoniflowCalendar";
+import { uploadImage } from "../../utils/uploadImage";
 
 interface GeneratorTabProps {
     activeProject: Project | null;
@@ -74,15 +75,21 @@ export default function GeneratorTab({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [copied, setCopied] = useState(false);
+    // Image upload state
+    const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+    const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
 
     // Image upload handlers
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            setPendingImageFile(file);       // Keep File reference for later upload
+            setUploadedImageUrl(null);       // Reset any previous upload URL
             setUploadedImageName(file.name);
             const reader = new FileReader();
             reader.onloadend = () => {
-                setUploadedImage(reader.result as string);
+                setUploadedImage(reader.result as string); // Local preview only
             };
             reader.readAsDataURL(file);
         }
@@ -91,6 +98,8 @@ export default function GeneratorTab({
     const handleRemoveImage = () => {
         setUploadedImage(null);
         setUploadedImageName(null);
+        setPendingImageFile(null);
+        setUploadedImageUrl(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
@@ -164,6 +173,27 @@ export default function GeneratorTab({
 
     const handleSave = async () => {
         if (!generatedAd || !activeProject) return;
+
+        let finalImageUrl = generatedAd.imageUrl || "";
+
+        // If user uploaded an image that hasn't been sent to Storage yet — upload now
+        if (pendingImageFile && !uploadedImageUrl) {
+            setIsUploadingImage(true);
+            try {
+                const url = await uploadImage(pendingImageFile);
+                setUploadedImageUrl(url);
+                finalImageUrl = url;
+            } catch (err) {
+                showNotification("error", `სურათის ატვირთვა ვერ მოხდა: ${(err as Error).message}`);
+                setIsUploadingImage(false);
+                return;
+            }
+            setIsUploadingImage(false);
+        } else if (uploadedImageUrl) {
+            // Already uploaded in a previous save attempt
+            finalImageUrl = uploadedImageUrl;
+        }
+
         try {
             await saveAd(activeProject.id, {
                 platform,
@@ -171,7 +201,7 @@ export default function GeneratorTab({
                 headline: generatedAd.headline || "",
                 text: generatedAd.text,
                 cta: generatedAd.cta || "",
-                image_url: generatedAd.imageUrl || ""
+                image_url: finalImageUrl,
             });
             showNotification("success", "პოსტი წარმატებით შეინახა!");
         } catch (err) {
@@ -192,6 +222,8 @@ export default function GeneratorTab({
         setImagePrompt("");
         setUploadedImage(null);
         setUploadedImageName(null);
+        setPendingImageFile(null);
+        setUploadedImageUrl(null);
         setScheduleTargetDate(null);
         setEditingCalendarEvent(null);
     };
@@ -542,11 +574,22 @@ export default function GeneratorTab({
                                 {copied ? "✅ კოპირებულია!" : "📋 კოპირება"}
                             </button>
                             <button
-                                onClick={handleSave}
-                                className="px-3.5 py-1.5 rounded-lg border border-indigo-800/40 bg-indigo-950/40 text-indigo-300 font-semibold text-xs hover:bg-indigo-950/80 transition-all flex items-center gap-1.5"
-                            >
-                                💾 შენახვა
-                            </button>
+                                    onClick={handleSave}
+                                    disabled={isUploadingImage}
+                                    className="px-3.5 py-1.5 rounded-lg border border-indigo-800/40 bg-indigo-950/40 text-indigo-300 font-semibold text-xs hover:bg-indigo-950/80 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none"
+                                >
+                                    {isUploadingImage ? (
+                                        <>
+                                            <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                            </svg>
+                                            სურათი იტვირთება...
+                                        </>
+                                    ) : (
+                                        "💾 შენახვა"
+                                    )}
+                                </button>
                             {!scheduleTargetDate && (
                                 <button
                                     onClick={() => {

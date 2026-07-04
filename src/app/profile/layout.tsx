@@ -20,7 +20,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
         setActiveProject,
         notification,
         setNotification,
-        loadCalendarEvents,
+        fetchCalendarEvents,
         isProjectModalOpen,
         editingProject,
         openCreateProjectModal,
@@ -77,9 +77,9 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
     useEffect(() => {
         if (isAuthenticated) {
             fetchProjects();
-            loadCalendarEvents();
+            fetchCalendarEvents();
         }
-    }, [isAuthenticated, fetchProjects, loadCalendarEvents]);
+    }, [isAuthenticated, fetchProjects, fetchCalendarEvents]);
 
     const handleLogout = async () => {
         try {

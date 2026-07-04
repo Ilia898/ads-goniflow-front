@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Project } from "../../store/projectStore";
+import { uploadImage } from "../../utils/uploadImage";
 
 interface ProjectModalProps {
     isOpen: boolean;
@@ -19,6 +20,8 @@ export default function ProjectModal({ isOpen, project, onClose, onSubmit }: Pro
     const [projLogoFileName, setProjLogoFileName] = useState<string | null>(null);
     const logoFileInputRef = useRef<HTMLInputElement>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+    const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
 
     // Sync state when modal opens or active project changes
     useEffect(() => {
@@ -50,17 +53,28 @@ export default function ProjectModal({ isOpen, project, onClose, onSubmit }: Pro
         }
     }, [isOpen, project]);
 
-    const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            setProjLogoFileName(file.name);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const base64 = reader.result as string;
-                setProjLogoFile(base64);
-                setProjLogo(base64);
-            };
-            reader.readAsDataURL(file);
+        if (!file) return;
+
+        // Local base64 preview (shown immediately while uploading)
+        setProjLogoFileName(file.name);
+        setProjLogo("");
+        setLogoUploadError(null);
+        const reader = new FileReader();
+        reader.onloadend = () => setProjLogoFile(reader.result as string);
+        reader.readAsDataURL(file);
+
+        // Upload to Supabase Storage via POST /uploads
+        setIsUploadingLogo(true);
+        try {
+            const url = await uploadImage(file);
+            setProjLogo(url); // Public URL stored in DB
+        } catch (err) {
+            setLogoUploadError((err as Error).message);
+            setProjLogo("");
+        } finally {
+            setIsUploadingLogo(false);
         }
     };
 
@@ -68,12 +82,14 @@ export default function ProjectModal({ isOpen, project, onClose, onSubmit }: Pro
         setProjLogoFile(null);
         setProjLogoFileName(null);
         setProjLogo("");
+        setLogoUploadError(null);
         if (logoFileInputRef.current) logoFileInputRef.current.value = "";
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!projName.trim() || !projDesc.trim()) return;
+        if (isUploadingLogo) return; // Wait for logo upload to finish
 
         setIsSubmitting(true);
         try {
@@ -154,15 +170,30 @@ export default function ProjectModal({ isOpen, project, onClose, onSubmit }: Pro
                                 />
                                 <div className="min-w-0 flex-1">
                                     <p className="text-xs font-bold text-white truncate">{projLogoFileName}</p>
-                                    <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 mt-0.5">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block"></span>
-                                        ატვირთულია
-                                    </p>
+                                    {isUploadingLogo ? (
+                                        <p className="text-[10px] text-amber-400 font-bold flex items-center gap-1 mt-0.5">
+                                            <svg className="animate-spin h-2.5 w-2.5" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                            </svg>
+                                            Storage-ზე ატვირთვა...
+                                        </p>
+                                    ) : logoUploadError ? (
+                                        <p className="text-[10px] text-rose-400 font-bold flex items-center gap-1 mt-0.5">
+                                            ❌ {logoUploadError}
+                                        </p>
+                                    ) : (
+                                        <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 mt-0.5">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block"></span>
+                                            ატვირთულია
+                                        </p>
+                                    )}
                                 </div>
                                 <button
                                     type="button"
                                     onClick={handleRemoveLogoFile}
-                                    className="h-7 w-7 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all shrink-0 text-xs font-bold"
+                                    disabled={isUploadingLogo}
+                                    className="h-7 w-7 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all shrink-0 text-xs font-bold disabled:opacity-40 disabled:pointer-events-none"
                                 >
                                     ✕
                                 </button>
@@ -199,10 +230,16 @@ export default function ProjectModal({ isOpen, project, onClose, onSubmit }: Pro
                         </button>
                         <button
                             type="submit"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isUploadingLogo}
                             className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/10 transition-colors disabled:opacity-50"
                         >
-                            {isSubmitting ? "ინახება..." : project ? "შენახვა" : "შექმნა"}
+                            {isUploadingLogo
+                                ? "ლოგო იტვირთება..."
+                                : isSubmitting
+                                ? "ინახება..."
+                                : project
+                                ? "შენახვა"
+                                : "შექმნა"}
                         </button>
                     </div>
                 </form>
