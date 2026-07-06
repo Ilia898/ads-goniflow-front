@@ -6,6 +6,7 @@ import { generateMockAd, GeneratedAd } from "../../utils/mockGenerator";
 import SocialPreview from "../SocialPreview";
 import { CalendarEvent } from "../GoniflowCalendar";
 import { uploadImage } from "../../utils/uploadImage";
+import { apiFetch } from "../../utils/api";
 
 interface GeneratorTabProps {
     activeProject: Project | null;
@@ -105,25 +106,47 @@ export default function GeneratorTab({
         }
     };
 
-    const handleGenerate = () => {
+    const handleGenerate = async () => {
         if (!activeProject) return;
         setIsGenerating(true);
         setGeneratedAd(null);
 
-        setTimeout(() => {
-            const result = generateMockAd({
-                textPrompt: prompt,
-                imagePrompt,
-                uploadedImage: uploadedImage || undefined,
-                platform,
-                tone,
-                projectName: activeProject.name,
-                projectDescription: activeProject.description,
-                projectLink: activeProject.link,
+        // Image handling stays client-side (mock/stock) — the backend has no image generation yet.
+        const mockResult = generateMockAd({
+            textPrompt: prompt,
+            imagePrompt,
+            uploadedImage: uploadedImage || undefined,
+            platform,
+            tone,
+            projectName: activeProject.name,
+            projectDescription: activeProject.description,
+            projectLink: activeProject.link,
+        });
+
+        try {
+            const { data } = await apiFetch(`/projects/${activeProject.id}/generate`, {
+                method: "POST",
+                body: JSON.stringify({
+                    platform,
+                    tone,
+                    textPrompt: prompt || undefined,
+                    imagePrompt: imagePrompt || undefined,
+                }),
             });
-            setGeneratedAd(result);
+
+            setGeneratedAd({
+                ...mockResult,
+                headline: data.headline,
+                text: data.text,
+                cta: data.cta,
+                hashtags: data.hashtags || [],
+            });
+        } catch {
+            // AI backend unavailable — fall back to the deterministic mock so the UI still works.
+            setGeneratedAd(mockResult);
+        } finally {
             setIsGenerating(false);
-        }, 1600);
+        }
     };
 
     const handleDirectAddToCalendar = () => {
