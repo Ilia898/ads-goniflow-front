@@ -111,7 +111,8 @@ export default function GeneratorTab({
         setIsGenerating(true);
         setGeneratedAd(null);
 
-        // Image handling stays client-side (mock/stock) — the backend has no image generation yet.
+        // Local mock stays as a fallback/reference — used if the AI backend is unavailable,
+        // or as the image source when the user uploaded their own image.
         const mockResult = generateMockAd({
             textPrompt: prompt,
             imagePrompt,
@@ -140,6 +141,8 @@ export default function GeneratorTab({
                 text: data.text,
                 cta: data.cta,
                 hashtags: data.hashtags || [],
+                // Respect an uploaded image; otherwise prefer the AI-generated image, falling back to stock.
+                imageUrl: uploadedImage ? mockResult.imageUrl : data.imageUrl || mockResult.imageUrl,
             });
         } catch {
             // AI backend unavailable — fall back to the deterministic mock so the UI still works.
