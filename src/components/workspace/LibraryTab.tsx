@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Project, SavedAd } from "../../store/projectStore";
+import SocialPreview from "../SocialPreview";
 
 interface LibraryTabProps {
     activeTab: string;
@@ -13,6 +14,7 @@ interface LibraryTabProps {
     openCreateModal: () => void;
     setPlatform: (platform: string) => void;
     setActiveTab: (tab: string) => void;
+    userEmail: string;
 }
 
 export default function LibraryTab({
@@ -24,8 +26,10 @@ export default function LibraryTab({
     showNotification,
     openCreateModal,
     setPlatform,
-    setActiveTab
+    setActiveTab,
+    userEmail
 }: LibraryTabProps) {
+    const [activeShareMenuId, setActiveShareMenuId] = useState<string | null>(null);
     const currentPlatformId = activeTab.replace("saved-", "");
 
     const PLAT_META: Record<string, { label: string; icon: string; headerBg: string; badge: string; editBtn: string }> = {
@@ -157,59 +161,157 @@ export default function LibraryTab({
                                         }}
                                         className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold rounded-xl border border-slate-700/50 bg-slate-900/50 text-slate-300 hover:bg-slate-800/60 transition-all"
                                     >
-                                        📋 კოპირება
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="w-3.5 h-3.5 mr-1 shrink-0">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                        </svg>
+                                        კოპირება
                                     </button>
                                 </div>
                             </div>
 
                             {/* ── FULL POST HOVER OVERLAY ── */}
-                            <div className="absolute inset-0 rounded-2xl bg-slate-950/97 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col p-5 overflow-y-auto pointer-events-none group-hover:pointer-events-auto">
+                            <div className="absolute inset-0 rounded-2xl bg-slate-950/97 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col p-5 pointer-events-none group-hover:pointer-events-auto">
                                 {/* Overlay header */}
                                 <div className="flex items-center justify-between mb-3 shrink-0">
                                     <span className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-full border ${meta.badge}`}>
                                         {meta.icon} {meta.label} · {ad.tone}
                                     </span>
-                                    <span className="text-[9px] text-slate-600 font-semibold">სრული ტექსტი</span>
+                                    <span className="text-[9px] text-slate-600 font-semibold">სრული პოსტი</span>
                                 </div>
 
-                                {/* Full headline */}
-                                {ad.headline && (
-                                    <h3 className="text-sm font-bold text-white mb-2 leading-snug shrink-0">
-                                        {ad.headline}
-                                    </h3>
-                                )}
-
-                                {/* Full post text */}
-                                <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-line flex-1">
-                                    {ad.text}
-                                </p>
-
-                                {ad.cta && (
-                                    <p className="text-[10px] text-indigo-400 font-bold mt-2 border-l-2 border-indigo-500/40 pl-2 shrink-0">
-                                        CTA: {ad.cta}
-                                    </p>
-                                )}
+                                {/* სქროლირებადი პოსტის პრევიუ */}
+                                <div className="flex-1 overflow-y-auto min-h-0 pr-1 mb-2 custom-scrollbar">
+                                    <div className="w-full max-w-[360px] mx-auto text-left scale-[0.95] origin-top">
+                                        <SocialPreview
+                                            platform={currentPlatformId}
+                                            ad={{
+                                                text: ad.text,
+                                                headline: ad.headline || "",
+                                                cta: ad.cta || "",
+                                                imageUrl: ad.image_url || "",
+                                                hashtags: []
+                                            }}
+                                            userEmail={userEmail}
+                                        />
+                                    </div>
+                                </div>
 
                                 {/* Overlay actions */}
-                                <div className="flex gap-2 mt-4 shrink-0">
+                                <div className="flex gap-1.5 mt-4 shrink-0 relative">
                                     <button
                                         onClick={() => handleLoadAdToGenerator(ad)}
-                                        className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold rounded-xl border transition-all ${meta.editBtn}`}
+                                        className={`flex-1 flex items-center justify-center gap-1 py-2 text-[11px] font-bold rounded-xl border transition-all ${meta.editBtn}`}
                                     >
                                         ✏️ რედაქტირება
                                     </button>
+
+                                    {/* SHARE BUTTON */}
+                                    <div className="flex-1 relative">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveShareMenuId(activeShareMenuId === ad.id ? null : ad.id);
+                                            }}
+                                            className="w-full flex items-center justify-center gap-1 py-2 text-[11px] font-bold rounded-xl border border-indigo-700/40 bg-indigo-950/30 text-indigo-300 hover:bg-indigo-900/40 transition-all"
+                                        >
+                                            🔗 გაზიარება
+                                        </button>
+
+                                        {/* Share Dropdown Menu */}
+                                        {activeShareMenuId === ad.id && (
+                                            <>
+                                                {/* Backdrop to close dropdown on click outside */}
+                                                <div 
+                                                    className="fixed inset-0 z-30" 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setActiveShareMenuId(null);
+                                                    }}
+                                                />
+                                                <div className="absolute bottom-full mb-2 left-0 right-0 z-40 rounded-xl border border-slate-800 bg-[#090d16]/95 backdrop-blur-md p-1.5 shadow-2xl space-y-1 text-left min-w-[140px]">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(ad.text + (ad.cta ? '\n' + ad.cta : ''))}`, '_blank');
+                                                            setActiveShareMenuId(null);
+                                                        }}
+                                                        className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-900 rounded-lg transition-colors flex items-center gap-1.5"
+                                                    >
+                                                        🐦 X (Twitter)-ზე
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(activeProject?.link || 'https://goniflow.ge')}`, '_blank');
+                                                            setActiveShareMenuId(null);
+                                                        }}
+                                                        className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-900 rounded-lg transition-colors flex items-center gap-1.5"
+                                                    >
+                                                        🔵 Facebook-ზე
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(activeProject?.link || 'https://goniflow.ge')}`, '_blank');
+                                                            setActiveShareMenuId(null);
+                                                        }}
+                                                        className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-900 rounded-lg transition-colors flex items-center gap-1.5"
+                                                    >
+                                                        💼 LinkedIn-ზე
+                                                    </button>
+                                                    {typeof navigator !== 'undefined' && navigator.share && (
+                                                        <>
+                                                            <div className="border-t border-slate-800 my-1"></div>
+                                                            <button
+                                                                onClick={async (e) => {
+                                                                    e.stopPropagation();
+                                                                    const startTime = Date.now();
+                                                                    try {
+                                                                        await navigator.share({
+                                                                            title: ad.headline || "GoniFlow Post",
+                                                                            text: ad.text,
+                                                                            url: activeProject?.link || window.location.origin
+                                                                        });
+                                                                        const elapsed = Date.now() - startTime;
+                                                                        if (elapsed > 1000) {
+                                                                            showNotification("success", "წარმატებით გაზიარდა!");
+                                                                        }
+                                                                    } catch {
+                                                                        // user cancelled
+                                                                    }
+                                                                    setActiveShareMenuId(null);
+                                                                }}
+                                                                className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-emerald-400 hover:bg-emerald-950/20 rounded-lg transition-colors flex items-center gap-1.5"
+                                                            >
+                                                                📱 სხვა აპლიკაციით
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* COPY BUTTON */}
                                     <button
                                         onClick={() => {
                                             navigator.clipboard.writeText(`${ad.text}\n\n${ad.cta}`);
                                             showNotification("success", "ტექსტი წარმატებით კოპირდა!");
                                         }}
-                                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold rounded-xl border border-slate-700/50 bg-slate-900/50 text-slate-300 hover:bg-slate-800/60 transition-all"
+                                        className="p-2 text-slate-300 hover:text-white transition-all rounded-xl border border-slate-700/50 bg-slate-900/50 hover:bg-slate-800/60 flex items-center justify-center shrink-0"
+                                        title="კოპირება"
                                     >
-                                        📋 კოპირება
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="w-3.5 h-3.5">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                        </svg>
                                     </button>
+
+                                    {/* DELETE BUTTON */}
                                     <button
                                         onClick={() => activeProject && deleteSavedAd(activeProject.id, ad.id)}
-                                        className="p-2.5 text-slate-600 hover:text-rose-400 transition-all rounded-xl border border-slate-800 hover:bg-rose-950/30 hover:border-rose-900/50"
+                                        className="p-2 text-slate-600 hover:text-rose-400 transition-all rounded-xl border border-slate-800 hover:bg-rose-950/30 hover:border-rose-900/50 flex items-center justify-center shrink-0"
                                         title="წაშლა"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">

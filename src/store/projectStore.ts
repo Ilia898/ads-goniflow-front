@@ -51,6 +51,7 @@ interface ProjectState {
   setScheduleTargetDate: (date: string | null) => void;
   editingCalendarEvent: CalendarEvent | null;
   setEditingCalendarEvent: (event: CalendarEvent | null) => void;
+  resetEditorState: () => void;
 
   // Global notifications
   notification: { type: "success" | "error"; message: string } | null;
@@ -134,6 +135,17 @@ export const useProjectStore = create<ProjectState>()(
       setScheduleTargetDate: (date) => set({ scheduleTargetDate: date }),
       editingCalendarEvent: null,
       setEditingCalendarEvent: (event) => set({ editingCalendarEvent: event }),
+      resetEditorState: () => set({
+        editorPrompt: "",
+        editorImagePrompt: "",
+        editorPlatform: "facebook",
+        editorTone: "professional",
+        editorUploadedImage: null,
+        editorUploadedImageName: null,
+        editorGeneratedAd: null,
+        scheduleTargetDate: null,
+        editingCalendarEvent: null
+      }),
 
       notification: null,
       setNotification: (val) => set({ notification: val }),

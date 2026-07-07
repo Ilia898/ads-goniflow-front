@@ -39,7 +39,6 @@ interface GeneratorTabProps {
     setEditingCalendarEvent: (event: CalendarEvent | null) => void;
     handleCalendarAddEvent: (ev: Omit<CalendarEvent, "id">) => void;
     handleCalendarUpdateEvent: (id: string, changes: Partial<CalendarEvent>) => void;
-    setPendingCalendarEvent: (event: Omit<CalendarEvent, "id" | "start"> | null) => void;
 }
 
 export default function GeneratorTab({
@@ -70,12 +69,45 @@ export default function GeneratorTab({
     editingCalendarEvent,
     setEditingCalendarEvent,
     handleCalendarAddEvent,
-    handleCalendarUpdateEvent,
-    setPendingCalendarEvent
+    handleCalendarUpdateEvent
 }: GeneratorTabProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [isEditingText, setIsEditingText] = useState(false);
+    const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
+    const [isScheduling, setIsScheduling] = useState(false);
+    const [scheduleDate, setScheduleDate] = useState("");
+    const [scheduleTime, setScheduleTime] = useState("12:00");
+
+    const handleConfirmSchedule = async () => {
+        if (!scheduleDate || !scheduleTime || !generatedAd) return;
+        const startISO = `${scheduleDate}T${scheduleTime}:00`;
+        
+        // Prevent scheduling in the past
+        const selectedDateTime = new Date(startISO);
+        const now = new Date();
+        if (selectedDateTime < now) {
+            showNotification("error", "წარსულ თარიღში ან დროში პოსტის დაგეგმვა შეუძლებელია!");
+            return;
+        }
+
+        try {
+            await handleCalendarAddEvent({
+                title: generatedAd.headline || platform,
+                start: startISO,
+                platform,
+                tone,
+                headline: generatedAd.headline || "",
+                text: generatedAd.text,
+                cta: generatedAd.cta || "",
+                allDay: false,
+            });
+            setIsScheduling(false);
+        } catch {
+            showNotification("error", "შეცდომა განრიგში დამატებისას.");
+        }
+    };
     // Image upload state
     const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
     const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
@@ -230,7 +262,7 @@ export default function GeneratorTab({
                 image_url: finalImageUrl,
             });
             showNotification("success", "პოსტი წარმატებით შეინახა!");
-        } catch (err) {
+        } catch {
             showNotification("error", "შეცდომა პოსტის შენახვისას. სცადეთ თავიდან.");
         }
     };
@@ -252,6 +284,9 @@ export default function GeneratorTab({
         setUploadedImageUrl(null);
         setScheduleTargetDate(null);
         setEditingCalendarEvent(null);
+        setGeneratedAd(null);
+        setIsEditingText(false);
+        setIsShareMenuOpen(false);
     };
 
     if (!activeProject) {
@@ -592,42 +627,139 @@ export default function GeneratorTab({
                 <div className="flex items-center justify-between">
                     <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">რეალური Live Preview</h2>
                     {generatedAd && (
-                        <div className="flex gap-2 flex-wrap">
+                        <div className="flex gap-2 flex-wrap items-center relative">
+                            {/* Copy button */}
                             <button
                                 onClick={handleCopy}
                                 className="px-3.5 py-1.5 rounded-lg border border-slate-800 bg-slate-900/60 text-slate-300 font-semibold text-xs hover:bg-slate-800 transition-all flex items-center gap-1.5"
                             >
-                                {copied ? "✅ კოპირებულია!" : "📋 კოპირება"}
+                                {copied ? (
+                                    <>✅ კოპირებულია!</>
+                                ) : (
+                                    <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="w-3.5 h-3.5 shrink-0">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                        </svg>
+                                        კოპირება
+                                    </>
+                                )}
                             </button>
+
+                            {/* Edit toggle button */}
                             <button
-                                    onClick={handleSave}
-                                    disabled={isUploadingImage}
-                                    className="px-3.5 py-1.5 rounded-lg border border-indigo-800/40 bg-indigo-950/40 text-indigo-300 font-semibold text-xs hover:bg-indigo-950/80 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none"
+                                onClick={() => setIsEditingText(!isEditingText)}
+                                className={`px-3.5 py-1.5 rounded-lg border font-semibold text-xs transition-all flex items-center gap-1.5 ${
+                                    isEditingText
+                                        ? "border-amber-700/40 bg-amber-950/30 text-amber-300 hover:bg-amber-900/40"
+                                        : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800"
+                                }`}
+                            >
+                                ✏️ {isEditingText ? "დასრულება" : "რედაქტირება"}
+                            </button>
+
+                            {/* Share button with dropdown */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsShareMenuOpen(!isShareMenuOpen)}
+                                    className="px-3.5 py-1.5 rounded-lg border border-indigo-800/40 bg-indigo-950/30 text-indigo-300 font-semibold text-xs hover:bg-indigo-900/40 transition-all flex items-center gap-1.5"
                                 >
-                                    {isUploadingImage ? (
-                                        <>
-                                            <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                            </svg>
-                                            სურათი იტვირთება...
-                                        </>
-                                    ) : (
-                                        "💾 შენახვა"
-                                    )}
+                                    🔗 გაზიარება
                                 </button>
+                                {isShareMenuOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-30" onClick={() => setIsShareMenuOpen(false)} />
+                                        <div className="absolute top-full mt-1.5 right-0 z-40 rounded-xl border border-slate-800 bg-[#090d16]/95 backdrop-blur-md p-1.5 shadow-2xl space-y-1 text-left min-w-[150px]">
+                                            <button
+                                                onClick={() => {
+                                                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(generatedAd.text + (generatedAd.cta ? '\n' + generatedAd.cta : ''))}`, '_blank');
+                                                    setIsShareMenuOpen(false);
+                                                }}
+                                                className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-900 rounded-lg transition-colors flex items-center gap-1.5"
+                                            >
+                                                🐦 X (Twitter)-ზე
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(activeProject?.link || 'https://goniflow.ge')}`, '_blank');
+                                                    setIsShareMenuOpen(false);
+                                                }}
+                                                className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-900 rounded-lg transition-colors flex items-center gap-1.5"
+                                            >
+                                                🔵 Facebook-ზე
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(activeProject?.link || 'https://goniflow.ge')}`, '_blank');
+                                                    setIsShareMenuOpen(false);
+                                                }}
+                                                className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-900 rounded-lg transition-colors flex items-center gap-1.5"
+                                            >
+                                                💼 LinkedIn-ზე
+                                            </button>
+                                            {typeof navigator !== 'undefined' && navigator.share && (
+                                                <>
+                                                    <div className="border-t border-slate-800 my-1"></div>
+                                                    <button
+                                                        onClick={async () => {
+                                                            const startTime = Date.now();
+                                                            try {
+                                                                await navigator.share({
+                                                                    title: generatedAd.headline || "GoniFlow Post",
+                                                                    text: generatedAd.text,
+                                                                    url: activeProject?.link || window.location.origin
+                                                                });
+                                                                const elapsed = Date.now() - startTime;
+                                                                if (elapsed > 1000) {
+                                                                    showNotification("success", "წარმატებით გაზიარდა!");
+                                                                }
+                                                            } catch {
+                                                                // cancelled
+                                                            }
+                                                            setIsShareMenuOpen(false);
+                                                        }}
+                                                        className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-emerald-400 hover:bg-emerald-950/20 rounded-lg transition-colors flex items-center gap-1.5"
+                                                    >
+                                                        📱 სხვა აპლიკაციით
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Save button */}
+                            <button
+                                onClick={handleSave}
+                                disabled={isUploadingImage}
+                                className="px-3.5 py-1.5 rounded-lg border border-indigo-800/40 bg-indigo-950/40 text-indigo-300 font-semibold text-xs hover:bg-indigo-950/80 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none"
+                            >
+                                {isUploadingImage ? (
+                                    <>
+                                        <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                        </svg>
+                                        სურათი იტვირთება...
+                                    </>
+                                ) : (
+                                    "💾 შენახვა"
+                                )}
+                            </button>
+
+                            {/* Add to schedule */}
                             {!scheduleTargetDate && (
                                 <button
                                     onClick={() => {
-                                        setPendingCalendarEvent({
-                                            title: platform,
-                                            platform,
-                                            tone,
-                                            headline: generatedAd.headline,
-                                            text: generatedAd.text,
-                                            cta: generatedAd.cta,
-                                        });
-                                        setActiveTab("calendar");
+                                        const now = new Date();
+                                        setScheduleDate(now.toISOString().split("T")[0]);
+                                        // Set default time to be current time plus 5 minutes (to avoid immediate past validation)
+                                        const futureTime = new Date(now.getTime() + 5 * 60000);
+                                        const hours = String(futureTime.getHours()).padStart(2, '0');
+                                        const minutes = String(futureTime.getMinutes()).padStart(2, '0');
+                                        setScheduleTime(`${hours}:${minutes}`);
+                                        setIsScheduling(true);
                                     }}
                                     className="px-3.5 py-1.5 rounded-lg border border-emerald-800/40 bg-emerald-950/40 text-emerald-300 font-semibold text-xs hover:bg-emerald-950/80 transition-all flex items-center gap-1.5"
                                 >
@@ -648,16 +780,130 @@ export default function GeneratorTab({
                             <span className="text-slate-400 text-xs font-semibold animate-pulse">AI მუშაობს კამპანიის ტექსტზე...</span>
                         </div>
                     ) : (
-                        <div className="w-full max-w-[420px] mx-auto">
+                        <div className="w-full max-w-[420px] mx-auto space-y-4">
                             <SocialPreview
                                 platform={platform}
                                 ad={generatedAd}
                                 userEmail={userEmail}
                             />
+
+                            {isEditingText && (
+                                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/50 space-y-3 animate-fade-in text-left">
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">ტექსტის რედაქტირება</h4>
+                                    
+                                    {/* Headline input */}
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-semibold text-slate-500">სათაური (Headline)</label>
+                                        <input
+                                            type="text"
+                                            value={generatedAd.headline || ""}
+                                            onChange={(e) => setGeneratedAd({ ...generatedAd, headline: e.target.value })}
+                                            className="w-full px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+                                            placeholder="სათაური..."
+                                        />
+                                    </div>
+
+                                    {/* Post Text textarea */}
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-semibold text-slate-500">პოსტის ტექსტი (Body Text)</label>
+                                        <textarea
+                                            value={generatedAd.text}
+                                            onChange={(e) => setGeneratedAd({ ...generatedAd, text: e.target.value })}
+                                            rows={5}
+                                            className="w-full px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-indigo-500 transition-colors resize-y"
+                                            placeholder="ტექსტი..."
+                                        />
+                                    </div>
+
+                                    {/* CTA input */}
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-semibold text-slate-500">CTA (მოწოდება ქმედებისკენ)</label>
+                                        <input
+                                            type="text"
+                                            value={generatedAd.cta || ""}
+                                            onChange={(e) => setGeneratedAd({ ...generatedAd, cta: e.target.value })}
+                                            className="w-full px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+                                            placeholder="მაგ: შეიტყვეთ მეტი"
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
             </div>
+            {isScheduling && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                    <div className="w-full max-w-sm rounded-2xl border border-slate-800 bg-[#090d16]/95 p-6 shadow-2xl space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+                                📅 განრიგში დამატება
+                            </h3>
+                            <button
+                                onClick={() => setIsScheduling(false)}
+                                className="p-1.5 text-slate-500 hover:text-white rounded-lg hover:bg-slate-900 transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <p className="text-xs text-slate-400 leading-relaxed">
+                            აირჩიეთ პოსტის ავტომატურად გამოქვეყნების სასურველი თარიღი და დრო.
+                        </p>
+
+                        <div className="space-y-3">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">თარიღი</label>
+                                <input
+                                    type="date"
+                                    value={scheduleDate}
+                                    min={new Date().toISOString().split("T")[0]}
+                                    onClick={(e) => {
+                                        try {
+                                            e.currentTarget.showPicker();
+                                        } catch {}
+                                    }}
+                                    onChange={(e) => setScheduleDate(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">დრო</label>
+                                <input
+                                    type="time"
+                                    value={scheduleTime}
+                                    onClick={(e) => {
+                                        try {
+                                            e.currentTarget.showPicker();
+                                        } catch {}
+                                    }}
+                                    onChange={(e) => setScheduleTime(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                            <button
+                                onClick={() => setIsScheduling(false)}
+                                className="flex-1 py-2 text-xs font-semibold rounded-xl border border-slate-800 hover:bg-slate-900 transition-all text-slate-300"
+                            >
+                                გაუქმება
+                            </button>
+                            <button
+                                onClick={handleConfirmSchedule}
+                                className="flex-1 py-2 text-xs font-semibold rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20"
+                            >
+                                დადასტურება
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
