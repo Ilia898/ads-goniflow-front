@@ -8,7 +8,8 @@ import GoniflowCalendar, { CalendarEvent } from "../../../components/GoniflowCal
 export default function CalendarPage() {
     const router = useRouter();
     const {
-        calendarEvents,
+        activeProject,
+        calendarEvents: allCalendarEvents,
         pendingCalendarEvent,
         setPendingCalendarEvent,
         addCalendarEvent,
@@ -23,6 +24,10 @@ export default function CalendarPage() {
         setEditorUploadedImage,
         setEditorUploadedImageName
     } = useProjectStore();
+
+    const calendarEvents = activeProject
+        ? allCalendarEvents.filter((ev) => ev.projectId === activeProject.id)
+        : [];
 
     const handleNavigateToGenerator = useCallback((isoDateTime: string) => {
         setScheduleTargetDate(isoDateTime);

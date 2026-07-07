@@ -108,6 +108,46 @@ export default function GeneratorTab({
             showNotification("error", "შეცდომა განრიგში დამატებისას.");
         }
     };
+
+    const handleDirectPublish = async (platformName: string, adData: { text: string; headline?: string; cta?: string; imageUrl?: string; image_url?: string }): Promise<boolean> => {
+        if (!activeProject) return false;
+        try {
+            showNotification("info", "მიმდინარეობს პირდაპირი გამოქვეყნება...");
+            await apiFetch(`/projects/${activeProject.id}/publish`, {
+                method: "POST",
+                body: JSON.stringify({
+                    platform: platformName,
+                    text: adData.text,
+                    headline: adData.headline || "",
+                    cta: adData.cta || "",
+                    imageUrl: adData.imageUrl || adData.image_url || ""
+                })
+            });
+            showNotification("success", "პოსტი წარმატებით გამოქვეყნდა სოციალურ ქსელში!");
+            return true;
+        } catch {
+            return false;
+        }
+    };
+
+    const handleDownload = async () => {
+        if (!generatedAd || !generatedAd.imageUrl) return;
+        try {
+            const response = await fetch(generatedAd.imageUrl);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `goniflow-${platform}-${Date.now()}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showNotification("success", "სურათი წარმატებით ჩამოიტვირთა!");
+        } catch {
+            window.open(generatedAd.imageUrl, "_blank");
+        }
+    };
     // Image upload state
     const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
     const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
@@ -646,6 +686,15 @@ export default function GeneratorTab({
                                 )}
                             </button>
 
+                            {/* Download button */}
+                            <button
+                                onClick={handleDownload}
+                                className="px-3.5 py-1.5 rounded-lg border border-slate-800 bg-slate-900/60 text-slate-300 font-semibold text-xs hover:bg-slate-800 transition-all flex items-center gap-1.5"
+                                title="სურათის ჩამოტვირთვა"
+                            >
+                                ⬇️ სურათი
+                            </button>
+
                             {/* Edit toggle button */}
                             <button
                                 onClick={() => setIsEditingText(!isEditingText)}
@@ -671,8 +720,11 @@ export default function GeneratorTab({
                                         <div className="fixed inset-0 z-30" onClick={() => setIsShareMenuOpen(false)} />
                                         <div className="absolute top-full mt-1.5 right-0 z-40 rounded-xl border border-slate-800 bg-[#090d16]/95 backdrop-blur-md p-1.5 shadow-2xl space-y-1 text-left min-w-[150px]">
                                             <button
-                                                onClick={() => {
-                                                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(generatedAd.text + (generatedAd.cta ? '\n' + generatedAd.cta : ''))}`, '_blank');
+                                                onClick={async () => {
+                                                    const success = await handleDirectPublish("x", generatedAd);
+                                                    if (!success) {
+                                                        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(generatedAd.text + (generatedAd.cta ? '\n' + generatedAd.cta : ''))}`, '_blank');
+                                                    }
                                                     setIsShareMenuOpen(false);
                                                 }}
                                                 className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-900 rounded-lg transition-colors flex items-center gap-1.5"
@@ -680,8 +732,14 @@ export default function GeneratorTab({
                                                 🐦 X (Twitter)-ზე
                                             </button>
                                             <button
-                                                onClick={() => {
-                                                    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(activeProject?.link || 'https://goniflow.ge')}`, '_blank');
+                                                onClick={async () => {
+                                                    const success = await handleDirectPublish("facebook", generatedAd);
+                                                    if (!success) {
+                                                        navigator.clipboard.writeText(`${generatedAd.text}\n\n${generatedAd.cta || ""}`);
+                                                        showNotification("success", "პოსტის ტექსტი კოპირებულია! ჩასვით (Ctrl+V) გაზიარების ველში.");
+                                                        handleDownload();
+                                                        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(activeProject?.link || 'https://goniflow.ge')}`, '_blank');
+                                                    }
                                                     setIsShareMenuOpen(false);
                                                 }}
                                                 className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-900 rounded-lg transition-colors flex items-center gap-1.5"
@@ -689,8 +747,14 @@ export default function GeneratorTab({
                                                 🔵 Facebook-ზე
                                             </button>
                                             <button
-                                                onClick={() => {
-                                                    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(activeProject?.link || 'https://goniflow.ge')}`, '_blank');
+                                                onClick={async () => {
+                                                    const success = await handleDirectPublish("linkedin", generatedAd);
+                                                    if (!success) {
+                                                        navigator.clipboard.writeText(`${generatedAd.text}\n\n${generatedAd.cta || ""}`);
+                                                        showNotification("success", "პოსტის ტექსტი კოპირებულია! ჩასვით (Ctrl+V) გაზიარების ველში.");
+                                                        handleDownload();
+                                                        window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(activeProject?.link || 'https://goniflow.ge')}`, '_blank');
+                                                    }
                                                     setIsShareMenuOpen(false);
                                                 }}
                                                 className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-900 rounded-lg transition-colors flex items-center gap-1.5"
@@ -704,10 +768,35 @@ export default function GeneratorTab({
                                                         onClick={async () => {
                                                             const startTime = Date.now();
                                                             try {
+                                                                // If browser supports sharing files and image is present
+                                                                if (navigator.share && generatedAd.imageUrl) {
+                                                                    try {
+                                                                        const res = await fetch(generatedAd.imageUrl);
+                                                                        const blob = await res.blob();
+                                                                        const file = new File([blob], `goniflow-post.png`, { type: "image/png" });
+                                                                        
+                                                                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                                                            await navigator.share({
+                                                                                title: generatedAd.headline || "GoniFlow Post",
+                                                                                text: `${generatedAd.text}\n\n${generatedAd.cta || ""}${activeProject?.link ? '\n\n' + activeProject.link : ''}`,
+                                                                                files: [file]
+                                                                            });
+                                                                            const elapsed = Date.now() - startTime;
+                                                                            if (elapsed > 1000) {
+                                                                                showNotification("success", "წარმატებით გაზიარდა!");
+                                                                            }
+                                                                            setIsShareMenuOpen(false);
+                                                                            return;
+                                                                        }
+                                                                    } catch (fileShareErr) {
+                                                                        console.error("File share failed, falling back to text", fileShareErr);
+                                                                    }
+                                                                }
+
+                                                                // Fallback to text only
                                                                 await navigator.share({
                                                                     title: generatedAd.headline || "GoniFlow Post",
-                                                                    text: generatedAd.text,
-                                                                    url: activeProject?.link || window.location.origin
+                                                                    text: `${generatedAd.text}\n\n${generatedAd.cta || ""}${activeProject?.link ? '\n\n' + activeProject.link : ''}`
                                                                 });
                                                                 const elapsed = Date.now() - startTime;
                                                                 if (elapsed > 1000) {

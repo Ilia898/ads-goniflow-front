@@ -12,6 +12,7 @@ import type { EventInput, EventClickArg, DateSelectArg, EventDropArg } from "@fu
 
 export interface CalendarEvent {
   id: string;
+  projectId?: string;
   title: string;
   start: string;
   end?: string;

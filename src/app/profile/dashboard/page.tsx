@@ -7,7 +7,10 @@ import DashboardTab from "../../../components/workspace/DashboardTab";
 
 export default function DashboardPage() {
     const router = useRouter();
-    const { savedAds, calendarEvents } = useProjectStore();
+    const { activeProject, savedAds, calendarEvents: allCalendarEvents } = useProjectStore();
+    const calendarEvents = activeProject
+        ? allCalendarEvents.filter((ev) => ev.projectId === activeProject.id)
+        : [];
 
     const handleActiveTabChange = (tab: string) => {
         if (tab === "calendar") {

@@ -13,7 +13,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
         projects,
         activeProject,
         savedAds,
-        calendarEvents,
+        calendarEvents: allCalendarEvents,
         fetchProjects,
         createProject,
         updateProject,
@@ -29,6 +29,10 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
         closeProjectModal,
         resetEditorState
     } = useProjectStore();
+
+    const calendarEvents = activeProject
+        ? allCalendarEvents.filter((ev) => ev.projectId === activeProject.id)
+        : [];
 
     const router = useRouter();
     const pathname = usePathname();

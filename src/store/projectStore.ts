@@ -89,6 +89,7 @@ function mapEventFromServer(raw: Record<string, unknown>): CalendarEvent {
   const platform = raw.platform as string;
   return {
     id:         raw.id as string,
+    projectId:  (raw.project_id as string) || undefined,
     title:      (raw.headline as string) || platform, // required by CalendarEvent
     platform,
     tone:       raw.tone as string,
