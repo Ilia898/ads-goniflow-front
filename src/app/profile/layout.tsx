@@ -13,6 +13,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
         projects,
         activeProject,
         savedAds,
+        calendarEvents: allCalendarEvents,
         fetchProjects,
         createProject,
         updateProject,
@@ -25,14 +26,32 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
         editingProject,
         openCreateProjectModal,
         openEditProjectModal,
-        closeProjectModal
+        closeProjectModal,
+        resetEditorState
     } = useProjectStore();
+
+    const calendarEvents = activeProject
+        ? allCalendarEvents.filter((ev) => ev.projectId === activeProject.id)
+        : [];
 
     const router = useRouter();
     const pathname = usePathname();
 
     // Dropdown toggle state
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
 
     // Settings Modal State
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -224,7 +243,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
 
                     {/* Project/Business Selector */}
                     {sidebarExpanded ? (
-                        <div className="relative z-30 pt-2 animate-fade-in">
+                        <div ref={dropdownRef} className="relative z-30 pt-2 animate-fade-in">
                             <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">აქტიური საქმიანობა</label>
                             <button
                                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -352,9 +371,9 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
                                     </svg>
                                     განრიგი
-                                    {savedAds.length > 0 && (
+                                    {calendarEvents.length > 0 && (
                                         <span className="ml-auto px-1.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                            {savedAds.length}
+                                            {calendarEvents.length}
                                         </span>
                                     )}
                                 </Link>
@@ -362,6 +381,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                                 {/* Post Generator */}
                                 <Link
                                     href="/profile/generator"
+                                    onClick={resetEditorState}
                                     className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                                         pathname === "/profile/generator"
                                             ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/15"
@@ -440,9 +460,9 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
                                     </svg>
-                                    {savedAds.length > 0 && (
+                                    {calendarEvents.length > 0 && (
                                         <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black bg-emerald-500 text-slate-950 shadow-md">
-                                            {savedAds.length}
+                                            {calendarEvents.length}
                                         </span>
                                     )}
                                 </Link>
@@ -450,6 +470,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                                 {/* Generator Icon */}
                                 <Link
                                     href="/profile/generator"
+                                    onClick={resetEditorState}
                                     className={`p-3 rounded-xl transition-all ${
                                         pathname === "/profile/generator"
                                             ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/15"

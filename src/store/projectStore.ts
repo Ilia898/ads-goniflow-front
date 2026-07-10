@@ -51,6 +51,7 @@ interface ProjectState {
   setScheduleTargetDate: (date: string | null) => void;
   editingCalendarEvent: CalendarEvent | null;
   setEditingCalendarEvent: (event: CalendarEvent | null) => void;
+  resetEditorState: () => void;
 
   // Global notifications
   notification: { type: "success" | "error"; message: string } | null;
@@ -88,6 +89,7 @@ function mapEventFromServer(raw: Record<string, unknown>): CalendarEvent {
   const platform = raw.platform as string;
   return {
     id:         raw.id as string,
+    projectId:  (raw.project_id as string) || undefined,
     title:      (raw.headline as string) || platform, // required by CalendarEvent
     platform,
     tone:       raw.tone as string,
@@ -134,6 +136,17 @@ export const useProjectStore = create<ProjectState>()(
       setScheduleTargetDate: (date) => set({ scheduleTargetDate: date }),
       editingCalendarEvent: null,
       setEditingCalendarEvent: (event) => set({ editingCalendarEvent: event }),
+      resetEditorState: () => set({
+        editorPrompt: "",
+        editorImagePrompt: "",
+        editorPlatform: "facebook",
+        editorTone: "professional",
+        editorUploadedImage: null,
+        editorUploadedImageName: null,
+        editorGeneratedAd: null,
+        scheduleTargetDate: null,
+        editingCalendarEvent: null
+      }),
 
       notification: null,
       setNotification: (val) => set({ notification: val }),

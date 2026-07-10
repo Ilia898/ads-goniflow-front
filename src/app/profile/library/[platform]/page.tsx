@@ -3,11 +3,13 @@
 import React, { use } from "react";
 import { useRouter } from "next/navigation";
 import { useProjectStore, SavedAd } from "../../../../store/projectStore";
+import { useAuthStore } from "../../../../store/authStore";
 import LibraryTab from "../../../../components/workspace/LibraryTab";
 
 export default function LibraryPage({ params }: { params: Promise<{ platform: string }> }) {
     const router = useRouter();
     const { platform } = use(params);
+    const { user } = useAuthStore();
     const {
         activeProject,
         savedAds,
@@ -68,6 +70,7 @@ export default function LibraryPage({ params }: { params: Promise<{ platform: st
             openCreateModal={openCreateModal}
             setPlatform={setEditorPlatform}
             setActiveTab={handleActiveTabChange}
+            userEmail={user?.email || ""}
         />
     );
 }
