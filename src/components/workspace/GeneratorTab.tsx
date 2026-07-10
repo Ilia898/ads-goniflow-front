@@ -112,7 +112,6 @@ export default function GeneratorTab({
     const handleDirectPublish = async (platformName: string, adData: { text: string; headline?: string; cta?: string; imageUrl?: string; image_url?: string }): Promise<boolean> => {
         if (!activeProject) return false;
         try {
-            showNotification("info", "მიმდინარეობს პირდაპირი გამოქვეყნება...");
             await apiFetch(`/projects/${activeProject.id}/publish`, {
                 method: "POST",
                 body: JSON.stringify({
@@ -876,7 +875,7 @@ export default function GeneratorTab({
                                 userEmail={userEmail}
                             />
 
-                            {isEditingText && (
+                            {isEditingText && generatedAd && (
                                 <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/50 space-y-3 animate-fade-in text-left">
                                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">ტექსტის რედაქტირება</h4>
                                     
