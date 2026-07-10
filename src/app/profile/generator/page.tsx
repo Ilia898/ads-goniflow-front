@@ -32,7 +32,6 @@ export default function GeneratorPage() {
         setEditingCalendarEvent,
         addCalendarEvent,
         updateCalendarEvent,
-        setPendingCalendarEvent,
         showNotification,
         openCreateProjectModal
     } = useProjectStore();
@@ -84,7 +83,6 @@ export default function GeneratorPage() {
             setEditingCalendarEvent={setEditingCalendarEvent}
             handleCalendarAddEvent={addCalendarEvent}
             handleCalendarUpdateEvent={updateCalendarEvent}
-            setPendingCalendarEvent={setPendingCalendarEvent}
         />
     );
 }
