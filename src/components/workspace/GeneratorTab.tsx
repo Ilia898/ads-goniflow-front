@@ -206,7 +206,10 @@ export default function GeneratorTab({
                 }),
             });
 
-            setPrompt(data.text);
+            const hashtagsText = data.hashtags && data.hashtags.length > 0
+                ? "\n\n" + data.hashtags.join(" ")
+                : "";
+            setPrompt(data.text + hashtagsText);
 
             setGeneratedAd({
                 headline: data.headline,
@@ -217,7 +220,10 @@ export default function GeneratorTab({
             });
             showNotification("success", "ტექსტი წარმატებით დაგენერირდა!");
         } catch {
-            setPrompt(mockResult.text);
+            const hashtagsText = mockResult.hashtags && mockResult.hashtags.length > 0
+                ? "\n\n" + mockResult.hashtags.join(" ")
+                : "";
+            setPrompt(mockResult.text + hashtagsText);
             setGeneratedAd({
                 ...mockResult,
                 imageUrl: generatedAd?.imageUrl || uploadedImage || mockResult.imageUrl,
@@ -368,14 +374,69 @@ export default function GeneratorTab({
         }
     };
 
-    const handleCopy = () => {
+    const handleCopy = async () => {
         const adText = generatedAd?.text || prompt;
         const hashtagsText = generatedAd?.hashtags?.length ? `\n\n${generatedAd.hashtags.join(" ")}` : "";
         const ctaText = generatedAd?.cta ? `\n\n${generatedAd.cta}` : "";
         const fullText = `${adText}${hashtagsText}${ctaText}`;
-        navigator.clipboard.writeText(fullText);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+
+        const imageUrl = isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl) : null;
+
+        if (imageUrl) {
+            try {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.src = imageUrl;
+                img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext("2d");
+                    if (ctx) {
+                        ctx.drawImage(img, 0, 0);
+                        canvas.toBlob(async (blob) => {
+                            if (blob) {
+                                try {
+                                    const item = new ClipboardItem({
+                                        "image/png": blob,
+                                        "text/plain": new Blob([fullText], { type: "text/plain" })
+                                    });
+                                    await navigator.clipboard.write([item]);
+                                    setCopied(true);
+                                    setTimeout(() => setCopied(false), 2000);
+                                    showNotification("success", "ტექსტი და სურათი კოპირებულია ბუფერში!");
+                                } catch (err) {
+                                    console.error("Clipboard write failed:", err);
+                                    await navigator.clipboard.writeText(fullText);
+                                    setCopied(true);
+                                    setTimeout(() => setCopied(false), 2000);
+                                    showNotification("success", "ტექსტი კოპირებულია! (სურათის კოპირება ვერ მოხერხდა)");
+                                }
+                            } else {
+                                await navigator.clipboard.writeText(fullText);
+                                setCopied(true);
+                                setTimeout(() => setCopied(false), 2000);
+                            }
+                        }, "image/png");
+                    }
+                };
+                img.onerror = async () => {
+                    await navigator.clipboard.writeText(fullText);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                    showNotification("success", "ტექსტი კოპირებულია! (სურათის კოპირება ვერ მოხერხდა)");
+                };
+            } catch {
+                await navigator.clipboard.writeText(fullText);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            }
+        } else {
+            await navigator.clipboard.writeText(fullText);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+            showNotification("success", "ტექსტი წარმატებით დაკოპირდა!");
+        }
     };
 
     const handleResetAll = () => {
@@ -484,6 +545,36 @@ export default function GeneratorTab({
                     </div>
                 </div>
 
+                {/* ── PLATFORM & TONE DROPDOWNS ── */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">სოციალური ქსელი</label>
+                        <select
+                            value={platform}
+                            onChange={(e) => setPlatform(e.target.value)}
+                            className="w-full px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                        >
+                            <option value="facebook">📘 Facebook</option>
+                            <option value="instagram">📸 Instagram</option>
+                            <option value="linkedin">💼 LinkedIn</option>
+                            <option value="x">🐦 X (Twitter)</option>
+                        </select>
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">ტონი (Tone of Voice)</label>
+                        <select
+                            value={tone}
+                            onChange={(e) => setTone(e.target.value)}
+                            className="w-full px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                        >
+                            <option value="professional">💼 ოფიციალური</option>
+                            <option value="friendly">👋 მეგობრული</option>
+                            <option value="funny">😎 ხუმარა</option>
+                            <option value="bold">💥 მბზინავი</option>
+                        </select>
+                    </div>
+                </div>
+
                 {/* ── TEXT INPUT SECTION ── */}
                 <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -529,6 +620,12 @@ export default function GeneratorTab({
                             if (isImageSectionOpen) {
                                 handleRemoveImage();
                                 setImagePrompt("");
+                                if (generatedAd) {
+                                    setGeneratedAd({
+                                        ...generatedAd,
+                                        imageUrl: ""
+                                    });
+                                }
                             }
                             setIsImageSectionOpen(!isImageSectionOpen);
                         }}
@@ -538,7 +635,7 @@ export default function GeneratorTab({
                                 : "border-slate-800 bg-slate-900/40 text-slate-300 hover:border-slate-700"
                         }`}
                     >
-                        {isImageSectionOpen ? "✕ სურათის მოცილება" : "➕ სურათის დამატება"}
+                        {isImageSectionOpen ? "✕ სურათის წაშლა" : "➕ სურათის დამატება"}
                     </button>
                 </div>
 
@@ -551,43 +648,78 @@ export default function GeneratorTab({
                             </label>
                         </div>
 
-                        {/* Upload area */}
-                        {!uploadedImage ? (
-                            <div
-                                onClick={() => fileInputRef.current?.click()}
-                                className="border border-dashed border-slate-800 hover:border-amber-500/40 rounded-xl p-4 text-center cursor-pointer bg-slate-950/20 hover:bg-amber-500/[0.02] transition-all group"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7 text-slate-600 group-hover:text-amber-400 mx-auto mb-1.5 transition-colors">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                                </svg>
-                                <span className="text-xs text-slate-500 group-hover:text-slate-300 font-semibold transition-colors block">სურათის ატვირთვა</span>
-                                <span className="text-[10px] text-slate-700 mt-0.5 block">AI გაანალიზებს ფოტოს შინაარსს</span>
-                            </div>
-                        ) : (
-                            <div className="relative rounded-xl border border-amber-800/30 bg-amber-950/10 p-3 flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-3 min-w-0">
+                        {/* Unified Input Container */}
+                        <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-2.5 space-y-2.5 focus-within:border-rose-500/40 transition-colors">
+                            {/* Textarea for Image Prompt */}
+                            <textarea
+                                id="image-prompt"
+                                rows={2}
+                                value={imagePrompt}
+                                onChange={(e) => setImagePrompt(e.target.value)}
+                                placeholder="სურათის გენერაციის ინსტრუქცია... (თუ ცარიელს დატოვებთ, სურათი შეიქმნება პოსტის ტექსტის მიხედვით)"
+                                className="w-full bg-transparent text-slate-100 placeholder-slate-600 outline-none resize-none text-xs leading-relaxed"
+                            />
+
+                            {/* Optional Uploaded Image Thumbnail Preview */}
+                            {uploadedImage && (
+                                <div className="relative inline-flex items-center gap-2 p-1.5 rounded-lg border border-amber-800/30 bg-amber-950/15 max-w-xs animate-fade-in">
                                     <img
                                         src={uploadedImage}
-                                        alt="Uploaded"
-                                        className="w-11 h-11 rounded-lg object-cover border border-amber-800/30 shrink-0"
+                                        alt="Uploaded thumbnail"
+                                        className="w-10 h-10 rounded-md object-cover border border-amber-800/20"
                                     />
-                                    <div className="min-w-0">
-                                        <p className="text-xs font-bold text-white truncate">{uploadedImageName}</p>
-                                        <p className="text-[10px] text-amber-400 font-bold flex items-center gap-1 mt-0.5">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
-                                            ატვირთული
-                                        </p>
+                                    <div className="min-w-0 pr-6">
+                                        <p className="text-[10px] font-semibold text-slate-200 truncate">{uploadedImageName}</p>
+                                        <p className="text-[9px] text-amber-400 font-bold">ატვირთული</p>
                                     </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleRemoveImage}
+                                        className="absolute top-1 right-1 h-4.5 w-4.5 rounded-md hover:bg-rose-950/50 hover:text-rose-400 text-slate-500 text-[10px] flex items-center justify-center transition-all"
+                                        title="წაშლა"
+                                    >
+                                        ✕
+                                    </button>
                                 </div>
+                            )}
+
+                            {/* Input Action Bar */}
+                            <div className="flex items-center justify-between pt-2 border-t border-slate-900/60">
+                                {/* Upload Button */}
                                 <button
-                                    onClick={handleRemoveImage}
-                                    className="h-7 w-7 rounded-lg border border-slate-800 hover:border-rose-800/50 bg-slate-900/60 hover:bg-rose-950/30 text-slate-500 hover:text-rose-400 text-xs transition-all shrink-0 flex items-center justify-center"
-                                    title="სურათის წაშლა"
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-semibold transition-all ${
+                                        uploadedImage
+                                            ? "border-emerald-950 bg-emerald-950/10 text-emerald-400"
+                                            : "border-slate-800 hover:border-slate-700 bg-slate-900/40 text-slate-300 hover:bg-slate-900"
+                                    }`}
                                 >
-                                    ✕
+                                    <span>📎</span>
+                                    {uploadedImage ? "შეცვლა" : "ფოტოს ატვირთვა"}
+                                </button>
+
+                                {/* Generate Button */}
+                                <button
+                                    type="button"
+                                    onClick={handleGenerateImage}
+                                    disabled={isGeneratingImage || !activeProject}
+                                    className="bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-bold text-[11px] py-1.5 px-3.5 rounded-lg shadow-md shadow-rose-600/10 flex items-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+                                >
+                                    {isGeneratingImage ? (
+                                        <>
+                                            <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                            </svg>
+                                            გენერირდება...
+                                        </>
+                                    ) : (
+                                        <>🎨 სურათის გენერირება</>
+                                    )}
                                 </button>
                             </div>
-                        )}
+                        </div>
 
                         <input
                             type="file"
@@ -596,92 +728,10 @@ export default function GeneratorTab({
                             accept="image/*"
                             className="hidden"
                         />
-
-                        {/* Image Prompt Input */}
-                        <div className="space-y-1">
-                            <label htmlFor="image-prompt" className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
-                                სურათის პრომპტი
-                            </label>
-                            <textarea
-                                id="image-prompt"
-                                rows={2}
-                                value={imagePrompt}
-                                onChange={(e) => setImagePrompt(e.target.value)}
-                                placeholder="სურათის გენერაციის ინსტრუქცია... (თუ ცარიელს დატოვებთ, სურათი შეიქმნება პოსტის ტექსტის მიხედვით)"
-                                className="w-full rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-slate-100 placeholder-slate-600 outline-none transition-all focus:border-rose-500/40 focus:ring-2 focus:ring-rose-500/10 text-xs leading-relaxed"
-                            />
-                        </div>
-
-                        {/* Generate Image Button */}
-                        <button
-                            onClick={handleGenerateImage}
-                            disabled={isGeneratingImage || !activeProject}
-                            className="w-full bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-bold text-xs py-3 px-4 rounded-xl shadow-lg shadow-rose-600/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
-                        >
-                            {isGeneratingImage ? (
-                                <>
-                                    <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                    </svg>
-                                    სურათი გენერირდება...
-                                </>
-                            ) : (
-                                <>🎨 სურათის გენერირება</>
-                            )}
-                        </button>
                     </div>
                 )}
 
-                {/* Platform Selector */}
-                <div className="space-y-2">
-                    <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400">სოციალური ქსელი</span>
-                    <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
-                        {[
-                            { id: "facebook", name: "Facebook", color: "hover:border-blue-500/40 hover:bg-blue-500/5" },
-                            { id: "instagram", name: "Instagram", color: "hover:border-pink-500/40 hover:bg-pink-500/5" },
-                            { id: "linkedin", name: "LinkedIn", color: "hover:border-teal-500/40 hover:bg-teal-500/5" },
-                            { id: "x", name: "X (Twitter)", color: "hover:border-slate-300/40 hover:bg-slate-300/5" }
-                        ].map((p) => (
-                            <button
-                                key={p.id}
-                                onClick={() => setPlatform(p.id)}
-                                className={`py-3 px-2 rounded-xl border text-xs font-bold text-center transition-all ${
-                                    platform === p.id
-                                        ? "border-indigo-500 bg-indigo-500/10 text-white"
-                                        : `border-slate-800 bg-slate-950/20 text-slate-400 ${p.color}`
-                                }`}
-                            >
-                                {p.name}
-                            </button>
-                        ))}
-                    </div>
-                </div>
 
-                {/* Tone of Voice Selector */}
-                <div className="space-y-2">
-                    <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400">ტონი (Tone of Voice)</span>
-                    <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
-                        {[
-                            { id: "professional", name: "💼 ოფიციალური" },
-                            { id: "friendly", name: "👋 მეგობრული" },
-                            { id: "funny", name: "😎 ხუმარა" },
-                            { id: "bold", name: "💥 მბზინავი" }
-                        ].map((t) => (
-                            <button
-                                key={t.id}
-                                onClick={() => setTone(t.id)}
-                                className={`py-2 px-1.5 rounded-xl border text-xs font-semibold text-center transition-all ${
-                                    tone === t.id
-                                        ? "border-indigo-500 bg-indigo-500/10 text-white"
-                                        : "border-slate-800 bg-slate-950/20 text-slate-400 hover:border-slate-700"
-                                }`}
-                            >
-                                {t.name}
-                            </button>
-                        ))}
-                    </div>
-                </div>
 
                 {/* Active calendar flow action buttons at the bottom */}
                 {editingCalendarEvent ? (
@@ -936,8 +986,8 @@ export default function GeneratorTab({
                                     headline: generatedAd?.headline || activeProject?.name || "სარეკლამო კამპანია",
                                     text: prompt || "აქ გამოჩნდება თქვენი პოსტის ტექსტი...",
                                     cta: generatedAd?.cta || "გაიგე მეტი",
-                                    imageUrl: uploadedImage || generatedAd?.imageUrl || "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=80",
-                                    hashtags: generatedAd?.hashtags || [],
+                                    imageUrl: isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl || "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=80") : "",
+                                    hashtags: prompt.includes("#") ? [] : (generatedAd?.hashtags || []),
                                 }}
                                 userEmail={userEmail}
                             />

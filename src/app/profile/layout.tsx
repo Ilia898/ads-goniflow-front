@@ -103,6 +103,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
     const handleLogout = async () => {
         try {
             await logout();
+            resetEditorState();
             router.push("/login");
         } catch (err) {
             // Handled by store

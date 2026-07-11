@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "../../store/authStore";
+import { useProjectStore } from "../../store/projectStore";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -12,12 +13,14 @@ export default function LoginPage() {
     const [validationError, setValidationError] = useState<string | null>(null);
 
     const { login, isLoading, error, clearError, isAuthenticated } = useAuthStore();
+    const { resetEditorState } = useProjectStore();
     const router = useRouter();
 
     useEffect(() => {
         clearError();
         setValidationError(null);
-    }, [clearError]);
+        resetEditorState();
+    }, [clearError, resetEditorState]);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -36,6 +39,7 @@ export default function LoginPage() {
 
         try {
             await login(email, password);
+            resetEditorState();
             router.push("/profile");
         } catch (err) {
             // Error is handled globally by Zustand store
