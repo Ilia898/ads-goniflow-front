@@ -22,7 +22,6 @@ export default function LibraryPage({ params }: { params: Promise<{ platform: st
         setEditorUploadedImage,
         setEditorUploadedImageName,
         setEditorGeneratedAd,
-        openCreateProjectModal,
         resetEditorState
     } = useProjectStore();
 

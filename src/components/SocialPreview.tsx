@@ -122,7 +122,7 @@ export default function SocialPreview({ platform, ad, userEmail, onDownload }: S
         {/* Header */}
         <div className="p-3.5 flex items-center justify-between border-b border-[#262626]">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full p-[1.5px] bg-gradient-to-tr from-yellow-500 via-red-500 to-purple-600">
+            <div className="w-8 h-8 rounded-full p-[1.5px] bg-linear-to-tr from-yellow-500 via-red-500 to-purple-600">
               <div className="w-full h-full rounded-full bg-black border border-black flex items-center justify-center font-bold text-xs">
                 {userAvatarChar}
               </div>

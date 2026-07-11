@@ -631,7 +631,7 @@ export default function GeneratorTab({
                     <button
                         onClick={handleGenerateText}
                         disabled={isGenerating || !activeProject}
-                        className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-[11px] py-1.5 px-3 rounded-lg shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+                        className="bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-[11px] py-1.5 px-3 rounded-lg shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
                         style={{ width: "65%" }}
                     >
                         {isGenerating ? (
@@ -750,7 +750,7 @@ export default function GeneratorTab({
                                     type="button"
                                     onClick={handleGenerateImage}
                                     disabled={isGeneratingImage || !activeProject}
-                                    className="bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-bold text-[11px] py-1.5 px-3.5 rounded-lg shadow-md shadow-rose-600/10 flex items-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+                                    className="bg-linear-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-bold text-[11px] py-1.5 px-3.5 rounded-lg shadow-md shadow-rose-600/10 flex items-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
                                 >
                                     {isGeneratingImage ? (
                                         <>
@@ -784,7 +784,7 @@ export default function GeneratorTab({
                     <div className="flex gap-2 w-full pt-2">
                         <button
                             onClick={handleUpdateCalendarEventFromEdit}
-                            className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm py-3.5 px-4 rounded-xl shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98] animate-pulse-once"
+                            className="flex-1 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm py-3.5 px-4 rounded-xl shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98] animate-pulse-once"
                         >
                             ✏️ ჩანაწერის განახლება
                         </button>
@@ -800,7 +800,7 @@ export default function GeneratorTab({
                     <div className="flex gap-2 w-full pt-2">
                         <button
                             onClick={handleDirectAddToCalendar}
-                            className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-600/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98] animate-pulse-once"
+                            className="flex-1 bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-600/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98] animate-pulse-once"
                         >
                             📅 კალენდარში დამატება
                         </button>

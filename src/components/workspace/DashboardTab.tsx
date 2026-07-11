@@ -16,7 +16,7 @@ export default function DashboardTab({ savedAds, calendarEvents, setActiveTab }:
     };
 
     return (
-        <div className="space-y-8 animate-fade-in text-xs">
+        <div className="max-w-[1580px] mx-auto w-full px-4 sm:px-6 space-y-8 animate-fade-in text-xs">
             {/* Stats grid */}
             <div>
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">სტატისტიკა</h2>
@@ -73,10 +73,10 @@ export default function DashboardTab({ savedAds, calendarEvents, setActiveTab }:
                                 };
                                 const PLAT_ICONS: Record<string, string> = { facebook: "🔵", instagram: "📸", linkedin: "💼", x: "🐦" };
                                 return (
-                                    <div key={ev.id} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-800 bg-slate-950/40">
-                                        <span className={`text-[10px] font-black px-2 py-1 rounded-lg border ${PLAT_COLORS[ev.platform] || ""}`}>
-                                            {PLAT_ICONS[ev.platform]} {ev.platform.charAt(0).toUpperCase() + ev.platform.slice(1)}
-                                        </span>
+                                    <div key={ev.id} className="glass-panel rounded-xl px-4 py-2.5 flex items-center justify-between gap-3">
+                                        <div className={`h-6 w-6 rounded-lg border flex items-center justify-center text-[10px] shrink-0 ${PLAT_COLORS[ev.platform] || ""}`}>
+                                            {PLAT_ICONS[ev.platform]}
+                                        </div>
                                         <span className="text-xs text-white font-semibold flex-1 truncate">
                                             {ev.headline || ev.platform}
                                         </span>
@@ -109,7 +109,7 @@ export default function DashboardTab({ savedAds, calendarEvents, setActiveTab }:
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(305px,1fr))] gap-4">
                         {[...savedAds].reverse().slice(0, 6).map(ad => {
                             const PLAT_COLORS: Record<string, string> = {
                                 facebook: "bg-blue-500/10 text-blue-400 border-blue-500/20",
@@ -120,7 +120,7 @@ export default function DashboardTab({ savedAds, calendarEvents, setActiveTab }:
                             const PLAT_ICONS: Record<string, string> = { facebook: "🔵", instagram: "📸", linkedin: "💼", x: "🐦" };
                             const PLAT_LABELS: Record<string, string> = { facebook: "Facebook", instagram: "Instagram", linkedin: "LinkedIn", x: "X" };
                             return (
-                                <div key={ad.id} className="glass-panel rounded-2xl p-4 space-y-3">
+                                <div key={ad.id} className="glass-panel rounded-2xl p-4 space-y-3 w-full">
                                     <div className={`inline-flex items-center gap-1.5 text-[10px] font-black px-2 py-0.5 rounded-full border ${PLAT_COLORS[ad.platform] || ""}`}>
                                         {PLAT_ICONS[ad.platform]} {PLAT_LABELS[ad.platform] || ad.platform}
                                     </div>
