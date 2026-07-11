@@ -18,8 +18,9 @@ export default function LoginPage() {
 
     useEffect(() => {
         clearError();
-        setValidationError(null);
-        resetEditorState();
+        setTimeout(() => {
+            resetEditorState();
+        }, 0);
     }, [clearError, resetEditorState]);
 
     useEffect(() => {
@@ -41,7 +42,7 @@ export default function LoginPage() {
             await login(email, password);
             resetEditorState();
             router.push("/profile");
-        } catch (err) {
+        } catch {
             // Error is handled globally by Zustand store
         }
     };

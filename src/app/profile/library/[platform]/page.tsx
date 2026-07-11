@@ -57,10 +57,6 @@ export default function LibraryPage({ params }: { params: Promise<{ platform: st
         }
     };
 
-    const openCreateModal = () => {
-        openCreateProjectModal();
-    };
-
     return (
         <LibraryTab
             activeTab={`saved-${platform}`}
@@ -69,7 +65,6 @@ export default function LibraryPage({ params }: { params: Promise<{ platform: st
             deleteSavedAd={deleteSavedAd}
             handleLoadAdToGenerator={handleLoadAdToGenerator}
             showNotification={showNotification}
-            openCreateModal={openCreateModal}
             setPlatform={setEditorPlatform}
             setActiveTab={handleActiveTabChange}
             userEmail={user?.email || ""}

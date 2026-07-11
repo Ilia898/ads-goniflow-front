@@ -79,9 +79,10 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
         return () => window.removeEventListener("resize", handleResize);
     }, []);
 
-    // Close mobile overlay on page navigation
     useEffect(() => {
-        setIsMobileMenuOpen(false);
+        setTimeout(() => {
+            setIsMobileMenuOpen(false);
+        }, 0);
     }, [pathname]);
 
 
@@ -105,7 +106,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
             await logout();
             resetEditorState();
             router.push("/login");
-        } catch (err) {
+        } catch {
             // Handled by store
         }
     };

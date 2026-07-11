@@ -7,9 +7,10 @@ interface SocialPreviewProps {
   platform: string;
   ad: GeneratedAd | null;
   userEmail: string;
+  onDownload?: () => void;
 }
 
-export default function SocialPreview({ platform, ad, userEmail }: SocialPreviewProps) {
+export default function SocialPreview({ platform, ad, userEmail, onDownload }: SocialPreviewProps) {
   const userName = userEmail ? userEmail.split("@")[0] : "მომხმარებელი";
   const userAvatarChar = userName.charAt(0).toUpperCase();
 
@@ -63,25 +64,28 @@ export default function SocialPreview({ platform, ad, userEmail }: SocialPreview
           </div>
         </div>
 
-        {/* Image / Link Area */}
-        <div className="border-t border-b border-[#242526] bg-[#242526]">
-          {ad.imageUrl && (
+        {/* Image Area */}
+        {ad.imageUrl && (
+          <div className="border-t border-b border-[#242526] bg-[#242526] relative group">
             <img 
               src={ad.imageUrl} 
               alt="Facebook Ad Preview" 
               className="w-full h-[240px] object-cover" 
             />
-          )}
-          <div className="p-3 bg-[#242526] flex items-center justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <span className="text-[12px] text-[#b0b3b8] uppercase tracking-wider block truncate">GONIFLOW.GE</span>
-              <span className="font-semibold text-[16px] text-white block truncate mt-0.5">{ad.headline || "ინოვაციური პროდუქტი"}</span>
-            </div>
-            <button className="bg-[#3a3b3c] hover:bg-[#4e4f50] text-white font-semibold text-[14px] px-4 py-2 rounded-lg shrink-0 transition-colors">
-              {ad.cta}
-            </button>
+            {onDownload && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDownload();
+                }}
+                className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center shadow-lg border border-slate-800 text-xs"
+                title="სურათის ჩამოტვირთვა"
+              >
+                📥
+              </button>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Action Bar */}
         <div className="px-4 py-2 text-[13px] text-[#b0b3b8] flex items-center justify-between border-b border-[#242526]">
@@ -138,13 +142,25 @@ export default function SocialPreview({ platform, ad, userEmail }: SocialPreview
         </div>
 
         {/* Main Post Image */}
-        <div className="relative aspect-square bg-[#121212]">
+        <div className="relative aspect-square bg-[#121212] group">
           {ad.imageUrl && (
             <img 
               src={ad.imageUrl} 
               alt="Instagram Ad Preview" 
               className="w-full h-full object-cover" 
             />
+          )}
+          {ad.imageUrl && onDownload && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownload();
+              }}
+              className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center shadow-lg border border-slate-800 text-xs"
+              title="სურათის ჩამოტვირთვა"
+            >
+              📥
+            </button>
           )}
         </div>
 
@@ -231,24 +247,27 @@ export default function SocialPreview({ platform, ad, userEmail }: SocialPreview
         </div>
 
         {/* Image Card */}
-        <div className="bg-[#121619] border-t border-b border-slate-800 cursor-pointer">
-          {ad.imageUrl && (
+        {ad.imageUrl && (
+          <div className="bg-[#121619] border-t border-b border-slate-800 cursor-pointer relative group">
             <img 
               src={ad.imageUrl} 
               alt="LinkedIn Ad Preview" 
               className="w-full h-[220px] object-cover" 
             />
-          )}
-          <div className="p-3 bg-[#121619] border-t border-slate-800">
-            <span className="font-bold text-sm block truncate text-slate-200">{ad.headline || "ბიზნეს გადაწყვეტილება"}</span>
-            <div className="flex items-center justify-between gap-4 mt-2">
-              <span className="text-xs text-slate-400">goniflow.ge</span>
-              <button className="border border-indigo-400 text-indigo-400 hover:bg-indigo-400/10 font-semibold text-xs px-3.5 py-1.5 rounded-full transition-colors">
-                {ad.cta}
+            {onDownload && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDownload();
+                }}
+                className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center shadow-lg border border-slate-800 text-xs"
+                title="სურათის ჩამოტვირთვა"
+              >
+                📥
               </button>
-            </div>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Reaction info */}
         <div className="px-4 py-2 flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800">
@@ -309,24 +328,27 @@ export default function SocialPreview({ platform, ad, userEmail }: SocialPreview
         </div>
 
         {/* Link / Image Block */}
-        <div className="ml-13 border border-slate-800 rounded-2xl overflow-hidden bg-[#0c0d0e] cursor-pointer hover:bg-slate-900/40 transition-colors">
-          {ad.imageUrl && (
+        {ad.imageUrl && (
+          <div className="ml-13 border border-slate-800 rounded-2xl overflow-hidden bg-[#0c0d0e] cursor-pointer hover:bg-slate-900/40 transition-colors relative group">
             <img 
               src={ad.imageUrl} 
               alt="X Ad Preview" 
               className="w-full h-[200px] object-cover" 
             />
-          )}
-          <div className="p-3 border-t border-slate-800 flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <span className="text-[13px] text-slate-500 truncate block">goniflow.ge</span>
-              <span className="text-[14px] font-semibold text-slate-200 block truncate mt-0.5">{ad.headline || "სიახლე ჩვენთან"}</span>
-            </div>
-            <button className="bg-white hover:bg-slate-200 text-black font-bold text-xs px-4 py-2 rounded-full shrink-0 transition-colors">
-              {ad.cta}
-            </button>
+            {onDownload && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDownload();
+                }}
+                className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center shadow-lg border border-slate-800 text-xs"
+                title="სურათის ჩამოტვირთვა"
+              >
+                📥
+              </button>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Stats */}
         <div className="ml-13 flex items-center justify-between text-slate-500 text-xs pt-1 max-w-sm">

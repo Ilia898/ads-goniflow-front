@@ -359,6 +359,15 @@ export const useProjectStore = create<ProjectState>()(
       name: "goniflow-project-storage",
       partialize: (state) => ({
         activeProject: state.activeProject,
+        editorPrompt: state.editorPrompt,
+        editorImagePrompt: state.editorImagePrompt,
+        editorPlatform: state.editorPlatform,
+        editorTone: state.editorTone,
+        editorUploadedImage: state.editorUploadedImage,
+        editorUploadedImageName: state.editorUploadedImageName,
+        editorGeneratedAd: state.editorGeneratedAd,
+        scheduleTargetDate: state.scheduleTargetDate,
+        editingCalendarEvent: state.editingCalendarEvent,
       }),
     }
   )

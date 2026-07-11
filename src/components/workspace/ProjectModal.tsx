@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { Project } from "../../store/projectStore";
 import { uploadImage } from "../../utils/uploadImage";
 
@@ -23,8 +23,14 @@ export default function ProjectModal({ isOpen, project, onClose, onSubmit }: Pro
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
     const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
 
-    // Sync state when modal opens or active project changes
-    useEffect(() => {
+    const [prevProject, setPrevProject] = useState<Project | null>(null);
+    const [prevIsOpen, setPrevIsOpen] = useState(false);
+
+    // Sync state directly during rendering when modal opens or active project changes
+    if (isOpen !== prevIsOpen || project?.id !== prevProject?.id) {
+        setPrevIsOpen(isOpen);
+        setPrevProject(project);
+        
         if (isOpen) {
             if (project) {
                 setProjName(project.name);
@@ -51,7 +57,7 @@ export default function ProjectModal({ isOpen, project, onClose, onSubmit }: Pro
                 setProjLogoFileName(null);
             }
         }
-    }, [isOpen, project]);
+    }
 
     const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

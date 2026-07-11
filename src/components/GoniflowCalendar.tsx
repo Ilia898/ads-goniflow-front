@@ -6,7 +6,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
-import type { EventInput, EventClickArg, DateSelectArg, EventDropArg } from "@fullcalendar/core";
+import type { EventInput, EventClickArg, DateSelectArg, EventDropArg, EventContentArg } from "@fullcalendar/core";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -103,12 +103,19 @@ export default function GoniflowCalendar({
   const [dpDate, setDpDate] = useState(new Date().toISOString().split("T")[0]);
   const [dpTime, setDpTime] = useState("10:00");
 
-  // ── Handle pending from generator ──────────────────────────────────────────
+  const [prevPendingEvent, setPrevPendingEvent] = useState<Omit<CalendarEvent, "id" | "start"> | null>(null);
+
+  // Sync prop changes directly during rendering phase to avoid cascading useEffect warnings
+  if (pendingEvent && pendingEvent !== prevPendingEvent) {
+    setPrevPendingEvent(pendingEvent);
+    setDayPicker(pendingEvent);
+    setDpDate(new Date().toISOString().split("T")[0]);
+    setDpTime("10:00");
+  }
+
+  // ── Handle pending consumption after render ─────────────────────────────────
   useEffect(() => {
     if (pendingEvent) {
-      setDayPicker(pendingEvent);
-      setDpDate(new Date().toISOString().split("T")[0]);
-      setDpTime("10:00");
       onPendingEventConsumed?.();
     }
   }, [pendingEvent, onPendingEventConsumed]);
@@ -240,8 +247,8 @@ export default function GoniflowCalendar({
   };
 
   // ── Custom event content ───────────────────────────────────────────────────
-  const renderEvent = (info: any) => {
-    const ev: CalendarEvent = info.event.extendedProps;
+  const renderEvent = (info: EventContentArg) => {
+    const ev = info.event.extendedProps as CalendarEvent;
     const p = getPCfg(ev.platform);
     const t = getTCfg(ev.tone);
     return (

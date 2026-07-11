@@ -12,11 +12,17 @@ interface LibraryTabProps {
     deleteSavedAd: (projectId: string, adId: string) => Promise<void>;
     handleLoadAdToGenerator: (ad: SavedAd) => void;
     showNotification: (type: "success" | "error", message: string) => void;
-    openCreateModal: () => void;
     setPlatform: (platform: string) => void;
     setActiveTab: (tab: string) => void;
     userEmail: string;
     resetEditorState: () => void;
+}
+
+interface SocialAccount {
+    platform: string;
+    access_token: string;
+    platform_account_id?: string;
+    account_id?: string;
 }
 
 export default function LibraryTab({
@@ -26,7 +32,6 @@ export default function LibraryTab({
     deleteSavedAd,
     handleLoadAdToGenerator,
     showNotification,
-    openCreateModal,
     setPlatform,
     setActiveTab,
     userEmail,
@@ -59,7 +64,7 @@ export default function LibraryTab({
             const { data: accounts } = await apiFetch(`/api/social/accounts?email=${encodeURIComponent(userEmail)}`);
             if (!accounts || accounts.length === 0) return false;
 
-            const account = accounts.find((a: any) => a.platform === currentPlatformId);
+            const account = accounts.find((a: SocialAccount) => a.platform === currentPlatformId);
             if (!account || !account.access_token) return false;
 
             const payload = {
@@ -78,7 +83,7 @@ export default function LibraryTab({
 
             showNotification("success", "პოსტი წარმატებით გამოქვეყნდა პლატფორმაზე!");
             return true;
-        } catch (error: any) {
+        } catch (error) {
             console.error("Direct publish error:", error);
             return false; // Fallback to manual share
         }
@@ -136,7 +141,7 @@ export default function LibraryTab({
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 animate-fade-in">
-                    {filteredAds.map((ad: any) => (
+                    {filteredAds.map((ad: SavedAd) => (
                         <div
                             key={ad.id}
                             className="group glass-panel rounded-2xl overflow-hidden relative transition-all duration-300 hover:shadow-2xl hover:shadow-black/40"

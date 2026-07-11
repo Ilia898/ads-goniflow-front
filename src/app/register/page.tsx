@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "../../store/authStore";
 
@@ -15,12 +14,9 @@ export default function RegisterPage() {
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     const { register, isLoading, error, clearError } = useAuthStore();
-    const router = useRouter();
 
     useEffect(() => {
         clearError();
-        setValidationError(null);
-        setSuccessMessage(null);
     }, [clearError]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -50,7 +46,7 @@ export default function RegisterPage() {
             setEmail("");
             setPassword("");
             setConfirmPassword("");
-        } catch (err) {
+        } catch {
             // Error is handled globally by Zustand store
         }
     };

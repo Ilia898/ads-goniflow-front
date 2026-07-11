@@ -74,8 +74,6 @@ export default function GeneratorTab({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [copied, setCopied] = useState(false);
-    const [isEditingText, setIsEditingText] = useState(false);
-    const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
     const [isScheduling, setIsScheduling] = useState(false);
     const [scheduleDate, setScheduleDate] = useState("");
     const [scheduleTime, setScheduleTime] = useState("12:00");
@@ -106,26 +104,6 @@ export default function GeneratorTab({
             setIsScheduling(false);
         } catch {
             showNotification("error", "შეცდომა განრიგში დამატებისას.");
-        }
-    };
-
-    const handleDirectPublish = async (platformName: string, adData: { text: string; headline?: string; cta?: string; imageUrl?: string; image_url?: string }): Promise<boolean> => {
-        if (!activeProject) return false;
-        try {
-            await apiFetch(`/projects/${activeProject.id}/publish`, {
-                method: "POST",
-                body: JSON.stringify({
-                    platform: platformName,
-                    text: adData.text,
-                    headline: adData.headline || "",
-                    cta: adData.cta || "",
-                    imageUrl: adData.imageUrl || adData.image_url || ""
-                })
-            });
-            showNotification("success", "პოსტი წარმატებით გამოქვეყნდა სოციალურ ქსელში!");
-            return true;
-        } catch {
-            return false;
         }
     };
 
@@ -218,7 +196,6 @@ export default function GeneratorTab({
                 hashtags: data.hashtags || [],
                 imageUrl: generatedAd?.imageUrl || uploadedImage || mockResult.imageUrl,
             });
-            showNotification("success", "ტექსტი წარმატებით დაგენერირდა!");
         } catch {
             const hashtagsText = mockResult.hashtags && mockResult.hashtags.length > 0
                 ? "\n\n" + mockResult.hashtags.join(" ")
@@ -228,7 +205,6 @@ export default function GeneratorTab({
                 ...mockResult,
                 imageUrl: generatedAd?.imageUrl || uploadedImage || mockResult.imageUrl,
             });
-            showNotification("error", "AI სერვისი მიუწვდომელია. გამოყენებულია საილუსტრაციო ტექსტი.");
         } finally {
             setIsGenerating(false);
         }
@@ -272,7 +248,6 @@ export default function GeneratorTab({
                 ...currentAd,
                 imageUrl: data.imageUrl || mockResult.imageUrl,
             });
-            showNotification("success", "სურათი წარმატებით დაგენერირდა!");
         } catch {
             const currentAd = generatedAd || {
                 text: prompt,
@@ -285,7 +260,6 @@ export default function GeneratorTab({
                 ...currentAd,
                 imageUrl: mockResult.imageUrl,
             });
-            showNotification("error", "AI სერვისი მიუწვდომელია. გამოყენებულია საილუსტრაციო სურათი.");
         } finally {
             setIsGeneratingImage(false);
         }
@@ -377,65 +351,126 @@ export default function GeneratorTab({
     const handleCopy = async () => {
         const adText = generatedAd?.text || prompt;
         const hashtagsText = generatedAd?.hashtags?.length ? `\n\n${generatedAd.hashtags.join(" ")}` : "";
-        const ctaText = generatedAd?.cta ? `\n\n${generatedAd.cta}` : "";
-        const fullText = `${adText}${hashtagsText}${ctaText}`;
+        const fullText = `${adText}${hashtagsText}`;
 
         const imageUrl = isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl) : null;
 
         if (imageUrl) {
             try {
-                const img = new Image();
-                img.crossOrigin = "anonymous";
-                img.src = imageUrl;
-                img.onload = () => {
-                    const canvas = document.createElement("canvas");
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext("2d");
-                    if (ctx) {
-                        ctx.drawImage(img, 0, 0);
-                        canvas.toBlob(async (blob) => {
-                            if (blob) {
-                                try {
-                                    const item = new ClipboardItem({
-                                        "image/png": blob,
-                                        "text/plain": new Blob([fullText], { type: "text/plain" })
-                                    });
-                                    await navigator.clipboard.write([item]);
-                                    setCopied(true);
-                                    setTimeout(() => setCopied(false), 2000);
-                                    showNotification("success", "ტექსტი და სურათი კოპირებულია ბუფერში!");
-                                } catch (err) {
-                                    console.error("Clipboard write failed:", err);
-                                    await navigator.clipboard.writeText(fullText);
-                                    setCopied(true);
-                                    setTimeout(() => setCopied(false), 2000);
-                                    showNotification("success", "ტექსტი კოპირებულია! (სურათის კოპირება ვერ მოხერხდა)");
-                                }
-                            } else {
-                                await navigator.clipboard.writeText(fullText);
-                                setCopied(true);
-                                setTimeout(() => setCopied(false), 2000);
-                            }
-                        }, "image/png");
+                const imagePromise = new Promise<Blob>((resolve, reject) => {
+                    const img = new Image();
+                    if (!imageUrl.startsWith("data:")) {
+                        img.crossOrigin = "anonymous";
+                        img.src = imageUrl.includes("?") ? `${imageUrl}&cors` : `${imageUrl}?cors`;
+                    } else {
+                        img.src = imageUrl;
                     }
-                };
-                img.onerror = async () => {
+                    img.onload = () => {
+                        const canvas = document.createElement("canvas");
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext("2d");
+                        if (ctx) {
+                            ctx.drawImage(img, 0, 0);
+                            canvas.toBlob((blob) => {
+                                if (blob) {
+                                    resolve(blob);
+                                } else {
+                                    reject(new Error("Canvas toBlob returned null"));
+                                }
+                            }, "image/png");
+                        } else {
+                            reject(new Error("Could not get 2d context"));
+                        }
+                    };
+                    img.onerror = () => {
+                        reject(new Error(`Failed to load image at URL: ${imageUrl}`));
+                    };
+                });
+
+                let item: ClipboardItem;
+                try {
+                    // Try Promise-based ClipboardItem (Chrome/Safari)
+                    item = new ClipboardItem({
+                        "image/png": imagePromise,
+                        "text/plain": new Blob([fullText], { type: "text/plain" })
+                    });
+                } catch {
+                    // Fallback for Firefox (Resolve Promise first)
+                    const blob = await imagePromise;
+                    item = new ClipboardItem({
+                        "image/png": blob,
+                        "text/plain": new Blob([fullText], { type: "text/plain" })
+                    });
+                }
+
+                await navigator.clipboard.write([item]);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            } catch (err) {
+                console.error("Clipboard write failed, fallback to text:", err instanceof Error ? err.message : err);
+                try {
                     await navigator.clipboard.writeText(fullText);
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
-                    showNotification("success", "ტექსტი კოპირებულია! (სურათის კოპირება ვერ მოხერხდა)");
-                };
-            } catch {
+                } catch (fallbackErr) {
+                    console.error("Clipboard fallback failed:", fallbackErr);
+                }
+            }
+        } else {
+            try {
                 await navigator.clipboard.writeText(fullText);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
+            } catch (err) {
+                console.error("Clipboard writeText failed:", err);
             }
-        } else {
-            await navigator.clipboard.writeText(fullText);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-            showNotification("success", "ტექსტი წარმატებით დაკოპირდა!");
+        }
+    };
+
+    const handleShare = async () => {
+        const shareAd = generatedAd || { text: prompt, hashtags: [], cta: "", headline: "" };
+        const startTime = Date.now();
+        try {
+            if (typeof navigator !== 'undefined' && navigator.share) {
+                const imageUrl = isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl) : null;
+                if (imageUrl) {
+                    try {
+                        const res = await fetch(imageUrl);
+                        const blob = await res.blob();
+                        const file = new File([blob], `goniflow-post.png`, { type: "image/png" });
+                        
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                                title: shareAd.headline || "GoniFlow Post",
+                                text: `${shareAd.text}\n\n${shareAd.cta || ""}${activeProject?.link ? '\n\n' + activeProject.link : ''}`,
+                                files: [file]
+                            });
+                            const elapsed = Date.now() - startTime;
+                            if (elapsed > 1000) {
+                                showNotification("success", "წარმატებით გაზიარდა!");
+                            }
+                            return;
+                        }
+                    } catch (fileShareErr) {
+                        console.error("File share failed, falling back to text", fileShareErr);
+                    }
+                }
+
+                await navigator.share({
+                    title: shareAd.headline || "GoniFlow Post",
+                    text: `${shareAd.text}\n\n${shareAd.cta || ""}${activeProject?.link ? '\n\n' + activeProject.link : ''}`
+                });
+                const elapsed = Date.now() - startTime;
+                if (elapsed > 1000) {
+                    showNotification("success", "წარმატებით გაზიარდა!");
+                }
+            } else {
+                navigator.clipboard.writeText(`${shareAd.text}\n\n${shareAd.cta || ""}${activeProject?.link ? '\n\n' + activeProject.link : ''}`);
+                showNotification("success", "პოსტის ტექსტი კოპირებულია ბუფერში!");
+            }
+        } catch {
+            // cancelled
         }
     };
 
@@ -449,8 +484,6 @@ export default function GeneratorTab({
         setScheduleTargetDate(null);
         setEditingCalendarEvent(null);
         setGeneratedAd(null);
-        setIsEditingText(false);
-        setIsShareMenuOpen(false);
         setIsImageSectionOpen(false);
     };
 
@@ -570,7 +603,6 @@ export default function GeneratorTab({
                             <option value="professional">💼 ოფიციალური</option>
                             <option value="friendly">👋 მეგობრული</option>
                             <option value="funny">😎 ხუმარა</option>
-                            <option value="bold">💥 მბზინავი</option>
                         </select>
                     </div>
                 </div>
@@ -593,24 +625,38 @@ export default function GeneratorTab({
                     />
                 </div>
 
-                {/* Generate Text Button */}
-                <button
-                    onClick={handleGenerateText}
-                    disabled={isGenerating || !activeProject}
-                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm py-3 px-4 rounded-xl shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
-                >
-                    {isGenerating ? (
-                        <>
-                            <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
-                            AI გენერირებს ტექსტს...
-                        </>
-                    ) : (
-                        <>✍️ ტექსტის გენერირება</>
-                    )}
-                </button>
+                {/* Actions Panel (7:3 proportion) */}
+                <div className="flex gap-3 w-full">
+                    {/* Generate Text Button: 70% width */}
+                    <button
+                        onClick={handleGenerateText}
+                        disabled={isGenerating || !activeProject}
+                        className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-[11px] py-1.5 px-3 rounded-lg shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+                        style={{ width: "65%" }}
+                    >
+                        {isGenerating ? (
+                            <>
+                                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                </svg>
+                                AI გენერირებს ტექსტს...
+                            </>
+                        ) : (
+                            <>✍️ ტექსტის გენერირება</>
+                        )}
+                    </button>
+                    {/* Clear Button: 30% width */}
+                    <button
+                        type="button"
+                        onClick={handleResetAll}
+                        className="bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-rose-400 font-bold text-[11px] py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
+                        style={{ width: "35%" }}
+                        title="ყველაფრის გასუფთავება"
+                    >
+                        🗑️ გასუფთავება
+                    </button>
+                </div>
 
                 {/* Image toggle button */}
                 <div className="flex justify-start">
@@ -793,141 +839,15 @@ export default function GeneratorTab({
                                 )}
                             </button>
 
-                            {/* Download button */}
-                            {(uploadedImage || generatedAd?.imageUrl) && (
-                                <button
-                                    onClick={handleDownload}
-                                    className="px-3.5 py-1.5 rounded-lg border border-slate-800 bg-slate-900/60 text-slate-300 font-semibold text-xs hover:bg-slate-800 transition-all flex items-center gap-1.5 animate-fade-in"
-                                    title="სურათის ჩამოტვირთვა"
-                                >
-                                    ⬇️ სურათი
-                                </button>
-                            )}
 
-                            {/* Edit toggle button */}
+
+                            {/* Share button */}
                             <button
-                                onClick={() => setIsEditingText(!isEditingText)}
-                                className={`px-3.5 py-1.5 rounded-lg border font-semibold text-xs transition-all flex items-center gap-1.5 ${
-                                    isEditingText
-                                        ? "border-amber-700/40 bg-amber-950/30 text-amber-300 hover:bg-amber-900/40"
-                                        : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800"
-                                }`}
+                                onClick={handleShare}
+                                className="px-3.5 py-1.5 rounded-lg border border-indigo-800/40 bg-indigo-950/30 text-indigo-300 font-semibold text-xs hover:bg-indigo-900/40 transition-all flex items-center gap-1.5 animate-fade-in"
                             >
-                                ✏️ {isEditingText ? "დასრულება" : "სათაური / CTA"}
+                                🔗 გაზიარება
                             </button>
-
-                            {/* Share button with dropdown */}
-                            <div className="relative">
-                                <button
-                                    onClick={() => setIsShareMenuOpen(!isShareMenuOpen)}
-                                    className="px-3.5 py-1.5 rounded-lg border border-indigo-800/40 bg-indigo-950/30 text-indigo-300 font-semibold text-xs hover:bg-indigo-900/40 transition-all flex items-center gap-1.5"
-                                >
-                                    🔗 გაზიარება
-                                </button>
-                                {isShareMenuOpen && (
-                                    <>
-                                        <div className="fixed inset-0 z-30" onClick={() => setIsShareMenuOpen(false)} />
-                                        <div className="absolute top-full mt-1.5 right-0 z-40 rounded-xl border border-slate-800 bg-[#090d16]/95 backdrop-blur-md p-1.5 shadow-2xl space-y-1 text-left min-w-[150px]">
-                                            <button
-                                                onClick={async () => {
-                                                    const shareAd = generatedAd || { text: prompt, hashtags: [], cta: "" };
-                                                    const success = await handleDirectPublish("x", shareAd);
-                                                    if (!success) {
-                                                        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareAd.text + (shareAd.cta ? '\n' + shareAd.cta : ''))}`, '_blank');
-                                                    }
-                                                    setIsShareMenuOpen(false);
-                                                }}
-                                                className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-900 rounded-lg transition-colors flex items-center gap-1.5"
-                                            >
-                                                🐦 X (Twitter)-ზე
-                                            </button>
-                                            <button
-                                                onClick={async () => {
-                                                    const shareAd = generatedAd || { text: prompt, hashtags: [], cta: "" };
-                                                    const success = await handleDirectPublish("facebook", shareAd);
-                                                    if (!success) {
-                                                        navigator.clipboard.writeText(`${shareAd.text}\n\n${shareAd.cta || ""}`);
-                                                        showNotification("success", "პოსტის ტექსტი კოპირებულია! ჩასვით (Ctrl+V) გაზიარების ველში.");
-                                                        if (shareAd.imageUrl) handleDownload();
-                                                        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(activeProject?.link || 'https://goniflow.ge')}`, '_blank');
-                                                    }
-                                                    setIsShareMenuOpen(false);
-                                                }}
-                                                className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-900 rounded-lg transition-colors flex items-center gap-1.5"
-                                            >
-                                                🔵 Facebook-ზე
-                                            </button>
-                                            <button
-                                                onClick={async () => {
-                                                    const shareAd = generatedAd || { text: prompt, hashtags: [], cta: "" };
-                                                    const success = await handleDirectPublish("linkedin", shareAd);
-                                                    if (!success) {
-                                                        navigator.clipboard.writeText(`${shareAd.text}\n\n${shareAd.cta || ""}`);
-                                                        showNotification("success", "პოსტის ტექსტი კოპირებულია! ჩასვით (Ctrl+V) გაზიარების ველში.");
-                                                        if (shareAd.imageUrl) handleDownload();
-                                                        window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(activeProject?.link || 'https://goniflow.ge')}`, '_blank');
-                                                    }
-                                                    setIsShareMenuOpen(false);
-                                                }}
-                                                className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-900 rounded-lg transition-colors flex items-center gap-1.5"
-                                            >
-                                                💼 LinkedIn-ზე
-                                            </button>
-                                            {typeof navigator !== 'undefined' && navigator.share && (
-                                                <>
-                                                    <div className="border-t border-slate-800 my-1"></div>
-                                                    <button
-                                                        onClick={async () => {
-                                                            const shareAd = generatedAd || { text: prompt, hashtags: [], cta: "" };
-                                                            const startTime = Date.now();
-                                                            try {
-                                                                if (navigator.share && shareAd.imageUrl) {
-                                                                    try {
-                                                                        const res = await fetch(shareAd.imageUrl);
-                                                                        const blob = await res.blob();
-                                                                        const file = new File([blob], `goniflow-post.png`, { type: "image/png" });
-                                                                        
-                                                                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                                                                            await navigator.share({
-                                                                                title: shareAd.headline || "GoniFlow Post",
-                                                                                text: `${shareAd.text}\n\n${shareAd.cta || ""}${activeProject?.link ? '\n\n' + activeProject.link : ''}`,
-                                                                                files: [file]
-                                                                            });
-                                                                            const elapsed = Date.now() - startTime;
-                                                                            if (elapsed > 1000) {
-                                                                                showNotification("success", "წარმატებით გაზიარდა!");
-                                                                            }
-                                                                            setIsShareMenuOpen(false);
-                                                                            return;
-                                                                        }
-                                                                    } catch (fileShareErr) {
-                                                                        console.error("File share failed, falling back to text", fileShareErr);
-                                                                    }
-                                                                }
-
-                                                                await navigator.share({
-                                                                    title: shareAd.headline || "GoniFlow Post",
-                                                                    text: `${shareAd.text}\n\n${shareAd.cta || ""}${activeProject?.link ? '\n\n' + activeProject.link : ''}`
-                                                                });
-                                                                const elapsed = Date.now() - startTime;
-                                                                if (elapsed > 1000) {
-                                                                    showNotification("success", "წარმატებით გაზიარდა!");
-                                                                }
-                                                            } catch {
-                                                                // cancelled
-                                                            }
-                                                            setIsShareMenuOpen(false);
-                                                        }}
-                                                        className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-emerald-400 hover:bg-emerald-950/20 rounded-lg transition-colors flex items-center gap-1.5"
-                                                    >
-                                                        📱 სხვა აპლიკაციით
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
 
                             {/* Save button */}
                             <button
@@ -990,49 +910,8 @@ export default function GeneratorTab({
                                     hashtags: prompt.includes("#") ? [] : (generatedAd?.hashtags || []),
                                 }}
                                 userEmail={userEmail}
+                                onDownload={handleDownload}
                             />
-
-                            {isEditingText && (
-                                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/50 space-y-3 animate-fade-in text-left">
-                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">სათაურისა და CTA-ის რედაქტირება</h4>
-                                    
-                                    {/* Headline input */}
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-semibold text-slate-500">სათაური (Headline)</label>
-                                        <input
-                                            type="text"
-                                            value={generatedAd?.headline || activeProject?.name || ""}
-                                            onChange={(e) => setGeneratedAd({
-                                                headline: e.target.value,
-                                                text: prompt,
-                                                cta: generatedAd?.cta || "გაიგე მეტი",
-                                                imageUrl: generatedAd?.imageUrl || "",
-                                                hashtags: generatedAd?.hashtags || [],
-                                            })}
-                                            className="w-full px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
-                                            placeholder="სათაური..."
-                                        />
-                                    </div>
-
-                                    {/* CTA input */}
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-semibold text-slate-500">CTA (მოწოდება ქმედებისკენ)</label>
-                                        <input
-                                            type="text"
-                                            value={generatedAd?.cta || "გაიგე მეტი"}
-                                            onChange={(e) => setGeneratedAd({
-                                                headline: generatedAd?.headline || activeProject?.name || "",
-                                                text: prompt,
-                                                cta: e.target.value,
-                                                imageUrl: generatedAd?.imageUrl || "",
-                                                hashtags: generatedAd?.hashtags || [],
-                                            })}
-                                            className="w-full px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-indigo-500 transition-colors"
-                                            placeholder="მაგ: შეიტყვეთ მეტი"
-                                        />
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
                 </div>

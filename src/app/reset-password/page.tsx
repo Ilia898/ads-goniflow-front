@@ -12,15 +12,22 @@ export default function ResetPasswordPage() {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [validationError, setValidationError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
-    const [hasToken, setHasToken] = useState(false);
+    const [hasToken] = useState<boolean>(() => {
+        if (typeof window !== "undefined") {
+            const hash = window.location.hash;
+            if (hash) {
+                const params = new URLSearchParams(hash.substring(1));
+                return !!params.get("access_token");
+            }
+        }
+        return false;
+    });
 
     const { resetPassword, isLoading, error, clearError } = useAuthStore();
     const router = useRouter();
 
     useEffect(() => {
         clearError();
-        setValidationError(null);
-        setSuccessMessage(null);
 
         // Parse token from hash fragment in client browser
         if (typeof window !== "undefined") {
@@ -36,7 +43,6 @@ export default function ResetPasswordPage() {
                     if (refreshToken) {
                         document.cookie = `sb-refresh-token=${refreshToken}; path=/; max-age=2592000; SameSite=Lax`;
                     }
-                    setHasToken(true);
                 }
             }
         }
@@ -74,7 +80,7 @@ export default function ResetPasswordPage() {
             setTimeout(() => {
                 router.push("/login");
             }, 3000);
-        } catch (err) {
+        } catch {
             // Error is handled globally by Zustand store
         }
     };
