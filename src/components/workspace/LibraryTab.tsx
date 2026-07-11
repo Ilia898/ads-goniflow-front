@@ -16,6 +16,7 @@ interface LibraryTabProps {
     setPlatform: (platform: string) => void;
     setActiveTab: (tab: string) => void;
     userEmail: string;
+    resetEditorState: () => void;
 }
 
 export default function LibraryTab({
@@ -28,7 +29,8 @@ export default function LibraryTab({
     openCreateModal,
     setPlatform,
     setActiveTab,
-    userEmail
+    userEmail,
+    resetEditorState
 }: LibraryTabProps) {
     const [activeShareMenuId, setActiveShareMenuId] = useState<string | null>(null);
 
@@ -100,7 +102,11 @@ export default function LibraryTab({
                         {filteredAds.length} პოსტი
                     </div>
                     <button
-                        onClick={() => { setPlatform(currentPlatformId); setActiveTab("generator"); }}
+                        onClick={() => {
+                            resetEditorState();
+                            setPlatform(currentPlatformId);
+                            setActiveTab("generator");
+                        }}
                         className="px-5 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-600/10"
                     >
                         ✨ ახალი პოსტი
@@ -118,7 +124,11 @@ export default function LibraryTab({
                         შექმენით თქვენი პირველი {meta.label} პოსტი გენერატორის გამოყენებით.
                     </p>
                     <button
-                        onClick={() => { setPlatform(currentPlatformId); setActiveTab("generator"); }}
+                        onClick={() => {
+                            resetEditorState();
+                            setPlatform(currentPlatformId);
+                            setActiveTab("generator");
+                        }}
                         className="mt-1 px-5 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-600/10"
                     >
                         🚀 პოსტის შექმნა

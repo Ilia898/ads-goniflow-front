@@ -256,6 +256,7 @@ export const useProjectStore = create<ProjectState>()(
           });
           const updated = [res.data, ...get().projects];
           set({ projects: updated, activeProject: res.data, isLoading: false });
+          get().resetEditorState();
           get().fetchSavedAds(res.data.id);
         } catch (err) {
           set({ error: (err as Error).message, isLoading: false });
@@ -292,6 +293,7 @@ export const useProjectStore = create<ProjectState>()(
             activeProject: updated.length > 0 ? updated[0] : null,
             isLoading: false,
           });
+          get().resetEditorState();
           if (updated.length > 0) {
             get().fetchSavedAds(updated[0].id);
           } else {
@@ -305,6 +307,7 @@ export const useProjectStore = create<ProjectState>()(
 
       setActiveProject: (project) => {
         set({ activeProject: project });
+        get().resetEditorState();
         if (project) {
           get().fetchSavedAds(project.id);
         } else {

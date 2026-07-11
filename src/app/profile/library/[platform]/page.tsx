@@ -22,16 +22,17 @@ export default function LibraryPage({ params }: { params: Promise<{ platform: st
         setEditorUploadedImage,
         setEditorUploadedImageName,
         setEditorGeneratedAd,
-        openCreateProjectModal
+        openCreateProjectModal,
+        resetEditorState
     } = useProjectStore();
 
     const handleLoadAdToGenerator = (ad: SavedAd) => {
         setEditorPlatform(ad.platform);
         setEditorTone(ad.tone);
-        setEditorPrompt(ad.headline || ad.text.split("\n")[0] || "");
+        setEditorPrompt(ad.text);
         setEditorImagePrompt("");
-        setEditorUploadedImage(ad.image_url && ad.image_url.startsWith("data:") ? ad.image_url : null);
-        setEditorUploadedImageName(null);
+        setEditorUploadedImage(ad.image_url || null);
+        setEditorUploadedImageName(ad.image_url ? "შენახული სურათი" : null);
         setEditorGeneratedAd({
             headline: ad.headline || "",
             text: ad.text,
@@ -46,6 +47,7 @@ export default function LibraryPage({ params }: { params: Promise<{ platform: st
         if (tab === "calendar") {
             router.push("/profile/calendar");
         } else if (tab === "generator") {
+            resetEditorState();
             router.push("/profile/generator");
         } else if (tab === "dashboard") {
             router.push("/profile/dashboard");
@@ -71,6 +73,7 @@ export default function LibraryPage({ params }: { params: Promise<{ platform: st
             setPlatform={setEditorPlatform}
             setActiveTab={handleActiveTabChange}
             userEmail={user?.email || ""}
+            resetEditorState={resetEditorState}
         />
     );
 }
