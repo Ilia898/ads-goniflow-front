@@ -1,12 +1,12 @@
 "use client";
-
-import React, { useRef, useState } from "react";
-import { Project, SavedAd } from "../../store/projectStore";
+import React, { useRef, useState, useEffect } from "react";
+import { useProjectStore, Project, SavedAd } from "../../store/projectStore";
 import { generateMockAd, GeneratedAd } from "../../utils/mockGenerator";
 import SocialPreview from "../SocialPreview";
 import { CalendarEvent } from "../GoniflowCalendar";
 import { uploadImage } from "../../utils/uploadImage";
 import { apiFetch } from "../../utils/api";
+import { evaluateEngagement } from "../../utils/engagementEvaluator";
 
 interface GeneratorTabProps {
     activeProject: Project | null;
@@ -71,6 +71,61 @@ export default function GeneratorTab({
     handleCalendarAddEvent,
     handleCalendarUpdateEvent
 }: GeneratorTabProps) {
+    const { isBackendConnected, checkBackendConnection } = useProjectStore();
+
+    // AI Connection checking on mount
+    useEffect(() => {
+        checkBackendConnection();
+    }, [checkBackendConnection]);
+
+    // AI Prompt Enhancer States
+    const [isEnhancingPrompt, setIsEnhancingPrompt] = useState(false);
+    const [enhancedPrompt, setEnhancedPrompt] = useState("");
+    const [isEnhanceModalOpen, setIsEnhanceModalOpen] = useState(false);
+
+    // Multi-Platform Omnipost States
+    const [isOmnipostMode, setIsOmnipostMode] = useState(false);
+    const [omnipostPlatforms, setOmnipostPlatforms] = useState<string[]>(["facebook", "instagram"]);
+    const [omnipostAds, setOmnipostAds] = useState<Record<string, GeneratedAd>>({});
+
+    // Call to Action (CTA) States
+    const [ctaType, setCtaType] = useState("გაიგე მეტი");
+    const [customCta, setCustomCta] = useState("");
+
+    const enhancePromptOffline = (original: string, plat: string, t: string) => {
+        const clean = original.trim();
+        if (!clean) return "";
+        const platformLabel = plat === "facebook" ? "Facebook" : plat === "instagram" ? "Instagram" : plat === "linkedin" ? "LinkedIn" : "X (Twitter)";
+        let toneAdvice = "";
+        if (t === "professional") {
+            toneAdvice = "პროფესიონალური, საქმიანი და სანდო ფორმატით, რომელიც ორიენტირებულია ხარისხზე, B2B პარტნიორებზე ან პროფესიონალ მომხმარებლებზე.";
+        } else if (t === "friendly") {
+            toneAdvice = "თბილი, მეგობრული და ემოციური ფორმატით, რომელიც აახლოებს ბრენდს მომხმარებელთან და ხელს უწყობს თბილი საზოგადოების შექმნას.";
+        } else {
+            toneAdvice = "იუმორისტული, მახვილგონივრული და მსუბუქი სტილით, რომელიც მარტივად იპყრობს ყურადღებას და იწვევს პოზიტიურ ემოციებს.";
+        }
+        return `დაწერე პოსტი თემაზე: "${clean}".\nტექსტი უნდა იყოს ${toneAdvice}\nგამოიყენე შესაბამისი emoji-ები ზომიერად. ბოლოში დაურთე სამოქმედო მოწოდება (CTA) და 3-4 პოპულარული ჰეშთეგი.`;
+    };
+
+    const handleEnhancePrompt = async () => {
+        if (!prompt.trim()) return;
+        setIsEnhancingPrompt(true);
+        try {
+            const { data } = await apiFetch("/ai/enhance-prompt", {
+                method: "POST",
+                body: JSON.stringify({ prompt, platform, tone })
+            });
+            setEnhancedPrompt(data.enhancedPrompt);
+            setIsEnhanceModalOpen(true);
+        } catch {
+            const mockEnhanced = enhancePromptOffline(prompt, platform, tone);
+            setEnhancedPrompt(mockEnhanced);
+            setIsEnhanceModalOpen(true);
+        } finally {
+            setIsEnhancingPrompt(false);
+        }
+    };
+
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -164,50 +219,68 @@ export default function GeneratorTab({
         if (!activeProject) return;
         setIsGenerating(true);
 
-        const mockResult = generateMockAd({
-            textPrompt: prompt,
-            imagePrompt: "",
-            platform,
-            tone,
-            projectName: activeProject.name,
-            projectDescription: activeProject.description,
-            projectLink: activeProject.link,
-        });
+        const targets = isOmnipostMode ? omnipostPlatforms : [platform];
+        const results: Record<string, GeneratedAd> = {};
 
-        try {
-            const { data } = await apiFetch(`/projects/${activeProject.id}/generate`, {
-                method: "POST",
-                body: JSON.stringify({
-                    platform,
-                    tone,
-                    textPrompt: prompt || undefined,
-                }),
+        for (const plat of targets) {
+            const mockResult = generateMockAd({
+                textPrompt: prompt,
+                imagePrompt: "",
+                platform: plat,
+                tone,
+                projectName: activeProject.name,
+                projectDescription: activeProject.description,
+                projectLink: activeProject.link,
             });
 
-            const hashtagsText = data.hashtags && data.hashtags.length > 0
-                ? "\n\n" + data.hashtags.join(" ")
-                : "";
-            setPrompt(data.text + hashtagsText);
+            try {
+                const { data } = await apiFetch(`/projects/${activeProject.id}/generate`, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        platform: plat,
+                        tone,
+                        textPrompt: prompt || undefined,
+                    }),
+                });
 
-            setGeneratedAd({
-                headline: data.headline,
-                text: data.text,
-                cta: data.cta,
-                hashtags: data.hashtags || [],
-                imageUrl: generatedAd?.imageUrl || uploadedImage || mockResult.imageUrl,
-            });
-        } catch {
-            const hashtagsText = mockResult.hashtags && mockResult.hashtags.length > 0
-                ? "\n\n" + mockResult.hashtags.join(" ")
-                : "";
-            setPrompt(mockResult.text + hashtagsText);
-            setGeneratedAd({
-                ...mockResult,
-                imageUrl: generatedAd?.imageUrl || uploadedImage || mockResult.imageUrl,
-            });
-        } finally {
-            setIsGenerating(false);
+                results[plat] = {
+                    headline: data.headline,
+                    text: data.text,
+                    cta: data.cta,
+                    hashtags: data.hashtags || [],
+                    imageUrl: uploadedImage || data.imageUrl || mockResult.imageUrl,
+                };
+            } catch {
+                results[plat] = {
+                    ...mockResult,
+                    imageUrl: uploadedImage || mockResult.imageUrl,
+                };
+            }
         }
+
+        setOmnipostAds(results);
+
+        const primaryPlat = targets[0];
+        if (primaryPlat && results[primaryPlat]) {
+            const res = results[primaryPlat];
+            const hashtagsText = res.hashtags && res.hashtags.length > 0
+                ? "\n\n" + res.hashtags.join(" ")
+                : "";
+            setPrompt(res.text + hashtagsText);
+            setGeneratedAd(res);
+
+            if (res.cta) {
+                const standardCtas = ["გაიგე მეტი", "მოგვწერეთ", "დარეკეთ", "დაჯავშნეთ", "რეგისტრაცია", "შეიძინეთ"];
+                if (standardCtas.includes(res.cta)) {
+                    setCtaType(res.cta);
+                } else {
+                    setCtaType("custom");
+                    setCustomCta(res.cta);
+                }
+            }
+        }
+
+        setIsGenerating(false);
     };
 
     const handleGenerateImage = async () => {
@@ -244,9 +317,21 @@ export default function GeneratorTab({
                 hashtags: [],
             };
 
+            const imageUrl = data.imageUrl || mockResult.imageUrl;
             setGeneratedAd({
                 ...currentAd,
-                imageUrl: data.imageUrl || mockResult.imageUrl,
+                imageUrl,
+            });
+
+            setOmnipostAds(prev => {
+                const updated = { ...prev };
+                for (const plat in updated) {
+                    updated[plat] = {
+                        ...updated[plat],
+                        imageUrl,
+                    };
+                }
+                return updated;
             });
         } catch {
             const currentAd = generatedAd || {
@@ -256,9 +341,21 @@ export default function GeneratorTab({
                 hashtags: [],
             };
 
+            const imageUrl = mockResult.imageUrl;
             setGeneratedAd({
                 ...currentAd,
-                imageUrl: mockResult.imageUrl,
+                imageUrl,
+            });
+
+            setOmnipostAds(prev => {
+                const updated = { ...prev };
+                for (const plat in updated) {
+                    updated[plat] = {
+                        ...updated[plat],
+                        imageUrl,
+                    };
+                }
+                return updated;
             });
         } finally {
             setIsGeneratingImage(false);
@@ -333,18 +430,56 @@ export default function GeneratorTab({
             finalImageUrl = uploadedImageUrl;
         }
 
+        const finalCta = ctaType === "custom" ? customCta : ctaType;
         try {
             await saveAd(activeProject.id, {
                 platform,
                 tone,
                 headline: generatedAd?.headline || activeProject.name || "",
                 text: prompt,
-                cta: generatedAd?.cta || "გაიგე მეტი",
+                cta: finalCta || "გაიგე მეტი",
                 image_url: finalImageUrl,
             });
             showNotification("success", "პოსტი წარმატებით შეინახა!");
         } catch {
             showNotification("error", "შეცდომა პოსტის შენახვისას. სცადეთ თავიდან.");
+        }
+    };
+
+    const handleSavePlatformAd = async (plat: string, ad: GeneratedAd) => {
+        if (!activeProject) return;
+
+        let finalImageUrl = ad.imageUrl || "";
+
+        if (pendingImageFile && !uploadedImageUrl) {
+            setIsUploadingImage(true);
+            try {
+                const url = await uploadImage(pendingImageFile);
+                setUploadedImageUrl(url);
+                finalImageUrl = url;
+            } catch (err) {
+                showNotification("error", `სურათის ატვირთვა ვერ მოხდა: ${(err as Error).message}`);
+                setIsUploadingImage(false);
+                return;
+            }
+            setIsUploadingImage(false);
+        } else if (uploadedImageUrl) {
+            finalImageUrl = uploadedImageUrl;
+        }
+
+        const finalCta = ctaType === "custom" ? customCta : ctaType;
+        try {
+            await saveAd(activeProject.id, {
+                platform: plat,
+                tone,
+                headline: ad.headline || activeProject.name || "",
+                text: ad.text,
+                cta: ad.cta || finalCta || "გაიგე მეტი",
+                image_url: finalImageUrl,
+            });
+            showNotification("success", `${plat.toUpperCase()} პოსტი წარმატებით შეინახა!`);
+        } catch {
+            showNotification("error", "შეცდომა პოსტის შენახვისას.");
         }
     };
 
@@ -510,7 +645,7 @@ export default function GeneratorTab({
     }
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start h-full">
+        <div className="max-w-5xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start h-full">
             {/* Left: Input Form */}
             <div className="glass-panel rounded-2xl p-4 sm:p-6 space-y-5 sm:space-y-6">
                 {/* ── Calendar target date banner ── */}
@@ -558,54 +693,144 @@ export default function GeneratorTab({
                     </div>
                 )}
 
-                <div>
-                    <h2 className="text-base font-bold text-white">პოსტის შექმნა</h2>
-                    {/* Smart Mode Indicator */}
-                    <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                        {prompt.trim() ? (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">📝 ტექსტი: აქტიური</span>
+                <div className="flex items-center justify-between border-b border-slate-900 pb-3">
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-base font-bold text-white">პოსტის შექმნა</h2>
+                        {isBackendConnected ? (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" title="ბექენდ სერვერი აქტიურია">
+                                🟢 Real AI Mode
+                            </span>
                         ) : (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-700/30 text-slate-500 border border-slate-700/40">✨ ტექსტი: ცარიელი</span>
-                        )}
-                        <span className="text-slate-800">·</span>
-                        {uploadedImage ? (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">📸 სური.: ატვირთული</span>
-                        ) : generatedAd?.imageUrl ? (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30">🎨 სური.: გენერირებული</span>
-                        ) : (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-700/30 text-slate-500 border border-slate-700/40">🖼️ სური.: სტოკი</span>
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20" title="ბექენდი მიუწვდომელია. გამოიყენება კლიენტის მხარის AI იმიტაცია.">
+                                🟡 Offline AI Mode (Fallback)
+                            </span>
                         )}
                     </div>
+                    {/* Omnipost Switch */}
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <span className="text-[10px] font-bold text-slate-400">Omnipost რეჟიმი:</span>
+                        <input
+                            type="checkbox"
+                            checked={isOmnipostMode}
+                            onChange={(e) => {
+                                setIsOmnipostMode(e.target.checked);
+                                if (!e.target.checked) {
+                                    setOmnipostAds({});
+                                }
+                            }}
+                            className="sr-only peer"
+                        />
+                        <div className="relative w-7 h-4 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
                 </div>
 
-                {/* ── PLATFORM & TONE DROPDOWNS ── */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* Smart Mode Indicator */}
+                <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                    {prompt.trim() ? (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">📝 ტექსტი: აქტიური</span>
+                    ) : (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-700/30 text-slate-500 border border-slate-700/40">✨ ტექსტი: ცარიელი</span>
+                    )}
+                    <span className="text-slate-800">·</span>
+                    {uploadedImage ? (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">📸 სური.: ატვირთული</span>
+                    ) : generatedAd?.imageUrl ? (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30">🎨 სური.: გენერირებული</span>
+                    ) : (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-700/30 text-slate-500 border border-slate-700/40">🖼️ სური.: სტოკი</span>
+                    )}
+                </div>
+
+                {/* ── PLATFORM, TONE & CTA DROPDOWNS ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 lg:max-[1250px]:gap-1">
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">სოციალური ქსელი</label>
-                        <select
-                            value={platform}
-                            onChange={(e) => setPlatform(e.target.value)}
-                            className="w-full px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
-                        >
-                            <option value="facebook">📘 Facebook</option>
-                            <option value="instagram">📸 Instagram</option>
-                            <option value="linkedin">💼 LinkedIn</option>
-                            <option value="x">🐦 X (Twitter)</option>
-                        </select>
+                        <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider block text-center">სოციალური<br className="hidden lg:block xl:hidden" />ქსელი</label>
+                        {isOmnipostMode ? (
+                            <div className="flex items-center gap-3 flex-wrap py-2 px-3 rounded-xl border border-slate-800 bg-slate-950/50">
+                                {[
+                                    { id: "facebook", label: "Facebook", emoji: "📘" },
+                                    { id: "instagram", label: "Instagram", emoji: "📸" },
+                                    { id: "linkedin", label: "LinkedIn", emoji: "💼" },
+                                    { id: "x", label: "X", emoji: "🐦" },
+                                ].map((p) => {
+                                    const isChecked = omnipostPlatforms.includes(p.id);
+                                    return (
+                                        <label key={p.id} className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => {
+                                                    if (isChecked) {
+                                                        if (omnipostPlatforms.length > 1) {
+                                                            setOmnipostPlatforms(omnipostPlatforms.filter(id => id !== p.id));
+                                                        }
+                                                    } else {
+                                                        setOmnipostPlatforms([...omnipostPlatforms, p.id]);
+                                                    }
+                                                }}
+                                                className="accent-indigo-500 rounded border-slate-800 bg-slate-950"
+                                            />
+                                            <span>{p.emoji} {p.label}</span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <select
+                                value={platform}
+                                onChange={(e) => setPlatform(e.target.value)}
+                                className="w-full px-1 sm:px-2 lg:px-3 lg:max-[1250px]:px-0.5 py-2 sm:py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-[11px] sm:text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                            >
+                                <option value="facebook">📘 Facebook</option>
+                                <option value="instagram">📸 Instagram</option>
+                                <option value="linkedin">💼 LinkedIn</option>
+                                <option value="x">🐦 X (Twitter)</option>
+                            </select>
+                        )}
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">ტონი (Tone of Voice)</label>
+                        <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider block text-center">ტონი<br className="hidden lg:block xl:hidden" />(Tone of Voice)</label>
                         <select
                             value={tone}
                             onChange={(e) => setTone(e.target.value)}
-                            className="w-full px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                            className="w-full px-1 sm:px-2 lg:px-3 lg:max-[1250px]:px-0.5 py-2 sm:py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-[11px] sm:text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
                         >
-                            <option value="professional">💼 ოფიციალური</option>
+                            <option value="professional">💼 საქმიანი</option>
                             <option value="friendly">👋 მეგობრული</option>
                             <option value="funny">😎 ხუმარა</option>
                         </select>
                     </div>
+                    <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
+                        <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider block text-center">მოწოდება<br className="hidden lg:block xl:hidden" />(CTA)</label>
+                        <select
+                            value={ctaType}
+                            onChange={(e) => setCtaType(e.target.value)}
+                            className="w-full px-1 sm:px-2 lg:px-3 lg:max-[1250px]:px-0.5 py-2 sm:py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-[11px] sm:text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                        >
+                            <option value="გაიგე მეტი">🔗 გაიგე მეტი</option>
+                            <option value="მოგვწერეთ">💬 მოგვწერეთ</option>
+                            <option value="დარეკეთ">📞 დარეკეთ</option>
+                            <option value="დაჯავშნეთ">📅 დაჯავშნეთ</option>
+                            <option value="რეგისტრაცია">👤 რეგისტრაცია</option>
+                            <option value="შეიძინეთ">🛒 შეიძინეთ</option>
+                            <option value="custom">✍️ სხვა (ჩაწერეთ)...</option>
+                        </select>
+                    </div>
                 </div>
+
+                {ctaType === "custom" && (
+                    <div className="space-y-1.5 animate-fade-in">
+                        <label htmlFor="custom-cta" className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider block">საკუთარი მოწოდება მოქმედებისკენ (CTA)</label>
+                        <input
+                            id="custom-cta"
+                            type="text"
+                            value={customCta}
+                            onChange={(e) => setCustomCta(e.target.value)}
+                            placeholder="მაგ: შემოგვიერთდით"
+                            className="w-full px-1 sm:px-2 lg:px-3 lg:max-[1250px]:px-0.5 py-2 sm:py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-[11px] sm:text-xs focus:outline-none focus:border-indigo-500 transition-colors"
+                        />
+                    </div>
+                )}
 
                 {/* ── TEXT INPUT SECTION ── */}
                 <div className="space-y-1.5">
@@ -613,7 +838,28 @@ export default function GeneratorTab({
                         <label htmlFor="text-prompt" className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
                             <span>📝</span> პოსტის თემატიკა / ტექსტი
                         </label>
-                        <span className="text-[10px] text-slate-600 font-medium">სავალდებულო</span>
+                        <div className="flex items-center gap-2">
+                            {prompt.trim() && (
+                                <button
+                                    type="button"
+                                    onClick={handleEnhancePrompt}
+                                    disabled={isEnhancingPrompt}
+                                    className="px-2 py-1 rounded-lg border border-slate-800 bg-slate-900 text-[10px] font-bold text-slate-400 hover:border-indigo-500/40 hover:text-indigo-400 transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+                                >
+                                    {isEnhancingPrompt ? (
+                                        <>
+                                            <svg className="animate-spin h-2.5 w-2.5 text-indigo-400" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                            </svg>
+                                            მუშავდება...
+                                        </>
+                                    ) : (
+                                        <>✨ გააუმჯობესე</>
+                                    )}
+                                </button>
+                            )}
+                        </div>
                     </div>
                     <textarea
                         id="text-prompt"
@@ -625,33 +871,31 @@ export default function GeneratorTab({
                     />
                 </div>
 
-                {/* Actions Panel (7:3 proportion) */}
-                <div className="flex gap-3 w-full">
-                    {/* Generate Text Button: 70% width */}
+                {/* Actions Panel (Symmetric 50/50 flex-1) */}
+                <div className="flex gap-3 w-full min-[1022px]:max-[1084px]:gap-1">
+                    {/* Generate Text Button */}
                     <button
                         onClick={handleGenerateText}
                         disabled={isGenerating || !activeProject}
-                        className="bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-[11px] py-1.5 px-3 rounded-lg shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
-                        style={{ width: "65%" }}
+                        className="flex-1 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-[11px] min-[1022px]:max-[1084px]:text-[10px] py-2 px-0.5 rounded-lg shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-1.5 min-[1022px]:max-[1084px]:gap-1 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer whitespace-nowrap"
                     >
                         {isGenerating ? (
                             <>
-                                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                 </svg>
-                                AI გენერირებს ტექსტს...
+                                გენერირდება...
                             </>
                         ) : (
                             <>✍️ ტექსტის გენერირება</>
                         )}
                     </button>
-                    {/* Clear Button: 30% width */}
+                    {/* Clear Button */}
                     <button
                         type="button"
                         onClick={handleResetAll}
-                        className="bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-rose-400 font-bold text-[11px] py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
-                        style={{ width: "35%" }}
+                        className="flex-1 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-rose-400 font-bold text-[11px] min-[1022px]:max-[1084px]:text-[10px] py-2 px-0.5 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer whitespace-nowrap"
                         title="ყველაფრის გასუფთავება"
                     >
                         🗑️ გასუფთავება
@@ -730,19 +974,19 @@ export default function GeneratorTab({
                             )}
 
                             {/* Input Action Bar */}
-                            <div className="flex items-center justify-between pt-2 border-t border-slate-900/60">
+                            <div className="flex gap-2 w-full pt-2 border-t border-slate-900/60">
                                 {/* Upload Button */}
                                 <button
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-semibold transition-all ${
+                                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer ${
                                         uploadedImage
                                             ? "border-emerald-950 bg-emerald-950/10 text-emerald-400"
                                             : "border-slate-800 hover:border-slate-700 bg-slate-900/40 text-slate-300 hover:bg-slate-900"
                                     }`}
                                 >
                                     <span>📎</span>
-                                    {uploadedImage ? "შეცვლა" : "ფოტოს ატვირთვა"}
+                                    <span className="truncate">{uploadedImage ? "შეცვლა" : "ატვირთვა"}</span>
                                 </button>
 
                                 {/* Generate Button */}
@@ -750,7 +994,7 @@ export default function GeneratorTab({
                                     type="button"
                                     onClick={handleGenerateImage}
                                     disabled={isGeneratingImage || !activeProject}
-                                    className="bg-linear-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-bold text-[11px] py-1.5 px-3.5 rounded-lg shadow-md shadow-rose-600/10 flex items-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+                                    className="flex-1 bg-linear-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-bold text-[11px] py-2 px-3 rounded-lg shadow-md shadow-rose-600/10 flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                                 >
                                     {isGeneratingImage ? (
                                         <>
@@ -761,7 +1005,7 @@ export default function GeneratorTab({
                                             გენერირდება...
                                         </>
                                     ) : (
-                                        <>🎨 სურათის გენერირება</>
+                                        <>🎨 გენერირება</>
                                     )}
                                 </button>
                             </div>
@@ -781,35 +1025,35 @@ export default function GeneratorTab({
 
                 {/* Active calendar flow action buttons at the bottom */}
                 {editingCalendarEvent ? (
-                    <div className="flex gap-2 w-full pt-2">
+                    <div className="flex gap-2.5 w-full pt-2">
                         <button
                             onClick={handleUpdateCalendarEventFromEdit}
-                            className="flex-1 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm py-3.5 px-4 rounded-xl shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98] animate-pulse-once"
+                            className="flex-1 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs py-2.5 px-4 rounded-xl shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer animate-pulse-once"
                         >
-                            ✏️ ჩანაწერის განახლება
+                            ✏️ განახლება
                         </button>
                         <button
                             onClick={handleResetAll}
-                            className="px-4 py-3.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-900 text-slate-400 hover:text-rose-400 text-xs font-bold transition-all"
+                            className="flex-1 py-2.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-900 text-slate-400 hover:text-rose-400 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                             title="გაუქმება"
                         >
-                            გაუქმება
+                            ✕ გაუქმება
                         </button>
                     </div>
                 ) : scheduleTargetDate ? (
-                    <div className="flex gap-2 w-full pt-2">
+                    <div className="flex gap-2.5 w-full pt-2">
                         <button
                             onClick={handleDirectAddToCalendar}
-                            className="flex-1 bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-600/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98] animate-pulse-once"
+                            className="flex-1 bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs py-2.5 px-4 rounded-xl shadow-lg shadow-emerald-600/10 flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer animate-pulse-once"
                         >
-                            📅 კალენდარში დამატება
+                            📅 დამატება
                         </button>
                         <button
                             onClick={handleResetAll}
-                            className="px-4 py-3.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-900 text-slate-400 hover:text-rose-400 text-xs font-bold transition-all"
+                            className="flex-1 py-2.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-900 text-slate-400 hover:text-rose-400 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                             title="გაუქმება"
                         >
-                            გაუქმება
+                            ✕ გაუქმება
                         </button>
                     </div>
                 ) : null}
@@ -824,7 +1068,7 @@ export default function GeneratorTab({
                             {/* Copy button */}
                             <button
                                 onClick={handleCopy}
-                                className="px-3.5 py-1.5 rounded-lg border border-slate-800 bg-slate-900/60 text-slate-300 font-semibold text-xs hover:bg-slate-800 transition-all flex items-center gap-1.5"
+                                className="px-3.5 max-[500px]:px-1 min-[1023px]:max-[1110px]:px-[2.4px] py-1.5 rounded-lg border border-slate-800 bg-slate-900/60 text-slate-300 font-semibold text-xs hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer"
                             >
                                 {copied ? (
                                     <>✅ კოპირებულია!</>
@@ -844,7 +1088,7 @@ export default function GeneratorTab({
                             {/* Share button */}
                             <button
                                 onClick={handleShare}
-                                className="px-3.5 py-1.5 rounded-lg border border-indigo-800/40 bg-indigo-950/30 text-indigo-300 font-semibold text-xs hover:bg-indigo-900/40 transition-all flex items-center gap-1.5 animate-fade-in"
+                                className="px-3.5 max-[500px]:px-1 min-[1023px]:max-[1110px]:px-[2.4px] py-1.5 rounded-lg border border-indigo-800/40 bg-indigo-950/30 text-indigo-300 font-semibold text-xs hover:bg-indigo-900/40 transition-all flex items-center gap-1.5 animate-fade-in cursor-pointer"
                             >
                                 🔗 გაზიარება
                             </button>
@@ -853,7 +1097,7 @@ export default function GeneratorTab({
                             <button
                                 onClick={handleSave}
                                 disabled={isUploadingImage}
-                                className="px-3.5 py-1.5 rounded-lg border border-indigo-800/40 bg-indigo-950/40 text-indigo-300 font-semibold text-xs hover:bg-indigo-950/80 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none"
+                                className="px-3.5 max-[500px]:px-1 min-[1023px]:max-[1110px]:px-[2.4px] py-1.5 rounded-lg border border-indigo-800/40 bg-indigo-950/40 text-indigo-300 font-semibold text-xs hover:bg-indigo-950/80 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                             >
                                 {isUploadingImage ? (
                                     <>
@@ -880,7 +1124,7 @@ export default function GeneratorTab({
                                         setScheduleTime(`${hours}:${minutes}`);
                                         setIsScheduling(true);
                                     }}
-                                    className="px-3.5 py-1.5 rounded-lg border border-emerald-800/40 bg-emerald-950/40 text-emerald-300 font-semibold text-xs hover:bg-emerald-950/80 transition-all flex items-center gap-1.5"
+                                    className="px-3.5 max-[500px]:px-1 min-[1023px]:max-[1110px]:px-[2.4px] py-1.5 rounded-lg border border-emerald-800/40 bg-emerald-950/40 text-emerald-300 font-semibold text-xs hover:bg-emerald-950/80 transition-all flex items-center gap-1.5 cursor-pointer"
                                 >
                                     📅 განრიგში დამატება
                                 </button>
@@ -898,6 +1142,39 @@ export default function GeneratorTab({
                             </div>
                             <span className="text-slate-400 text-xs font-semibold animate-pulse">AI მუშაობს კამპანიის ტექსტზე...</span>
                         </div>
+                    ) : isOmnipostMode ? (
+                        <div className="space-y-6 max-h-[500px] overflow-y-auto pr-1 w-full">
+                            {omnipostPlatforms.map((plat) => {
+                                const ad = omnipostAds[plat] || {
+                                    headline: activeProject?.name || "სარეკლამო კამპანია",
+                                    text: prompt || "აქ გამოჩნდება თქვენი პოსტის ტექსტი...",
+                                    cta: ctaType === "custom" ? customCta : ctaType,
+                                    imageUrl: isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl || "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=80") : "",
+                                    hashtags: [],
+                                };
+                                return (
+                                    <div key={plat} className="space-y-2 border border-slate-900/60 p-4 rounded-2xl bg-slate-950/20">
+                                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                            <span>{plat.toUpperCase()} Preview</span>
+                                            <button
+                                                onClick={() => handleSavePlatformAd(plat, ad)}
+                                                className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white transition-all text-[9px] font-bold flex items-center gap-1 shadow-sm cursor-pointer"
+                                            >
+                                                💾 Save {plat.toUpperCase()}
+                                            </button>
+                                        </div>
+                                        <div className="w-full max-w-[420px] mx-auto">
+                                            <SocialPreview
+                                                platform={plat}
+                                                ad={ad}
+                                                userEmail={userEmail}
+                                                onDownload={handleDownload}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     ) : (
                         <div className="w-full max-w-[420px] mx-auto space-y-4">
                             <SocialPreview
@@ -905,7 +1182,7 @@ export default function GeneratorTab({
                                 ad={{
                                     headline: generatedAd?.headline || activeProject?.name || "სარეკლამო კამპანია",
                                     text: prompt || "აქ გამოჩნდება თქვენი პოსტის ტექსტი...",
-                                    cta: generatedAd?.cta || "გაიგე მეტი",
+                                    cta: (ctaType === "custom" ? customCta : ctaType) || generatedAd?.cta || "გაიგე მეტი",
                                     imageUrl: isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl || "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=80") : "",
                                     hashtags: prompt.includes("#") ? [] : (generatedAd?.hashtags || []),
                                 }}
@@ -915,6 +1192,60 @@ export default function GeneratorTab({
                         </div>
                     )}
                 </div>
+
+                {/* ── Engagement Analytics Score ── */}
+                {prompt.trim() && (() => {
+                    const finalCta = ctaType === "custom" ? customCta : ctaType;
+                    const engagement = evaluateEngagement(prompt, isOmnipostMode ? omnipostPlatforms[0] || "facebook" : platform, finalCta);
+                    return (
+                        <div className="glass-panel rounded-2xl p-4 sm:p-5 space-y-3.5 border border-slate-800 bg-slate-950/40 backdrop-blur-xl animate-fade-in text-xs w-full">
+                            <div className="flex items-center justify-between border-b border-slate-900 pb-2.5">
+                                <h3 className="font-bold text-white flex items-center gap-1.5">
+                                    📊 ჩართულობის ანალიზი (Engagement)
+                                </h3>
+                                <span className={`inline-flex items-center justify-center font-black text-[10px] px-2.5 py-0.5 rounded-full border ${engagement.colorClass}`}>
+                                    კლასი: {engagement.grade}
+                                </span>
+                            </div>
+                            
+                            <div className="flex items-center gap-5">
+                                {/* Circular Gauge */}
+                                <div className="relative flex items-center justify-center shrink-0">
+                                    <svg className="w-16 h-16 transform -rotate-90">
+                                        <circle cx="32" cy="32" r="28" stroke="rgba(255,255,255,0.03)" strokeWidth="6" fill="transparent" />
+                                        <circle cx="32" cy="32" r="28" 
+                                            stroke={
+                                                engagement.score >= 90 ? "#10b981" : 
+                                                engagement.score >= 75 ? "#14b8a6" : 
+                                                engagement.score >= 60 ? "#f59e0b" : 
+                                                engagement.score >= 45 ? "#f97316" : "#ef4444"
+                                            } 
+                                            strokeWidth="6" 
+                                            fill="transparent" 
+                                            strokeDasharray={2 * Math.PI * 28}
+                                            strokeDashoffset={2 * Math.PI * 28 - (engagement.score / 100) * 2 * Math.PI * 28}
+                                            className="transition-all duration-500 ease-out"
+                                        />
+                                    </svg>
+                                    <div className="absolute flex flex-col items-center justify-center leading-none">
+                                        <span className="text-sm font-black text-white">{engagement.score}%</span>
+                                        <span className="text-[8px] text-slate-500 font-bold uppercase mt-0.5">ქულა</span>
+                                    </div>
+                                </div>
+                                
+                                {/* Tips Checklist */}
+                                <div className="flex-1 space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                                    {engagement.tips.map((tip, i) => (
+                                        <div key={i} className="text-[10px] text-slate-400 leading-normal flex items-start gap-1">
+                                            <span>•</span>
+                                            <span>{tip}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
             {isScheduling && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -983,6 +1314,58 @@ export default function GeneratorTab({
                                 className="flex-1 py-2 text-xs font-semibold rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20"
                             >
                                 დადასტურება
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Enhanced Prompt Diff Modal */}
+            {isEnhanceModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                    <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-[#090d16]/95 p-6 shadow-2xl space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+                                ✨ გაუმჯობესებული ინსტრუქცია (AI Prompt)
+                            </h3>
+                            <button
+                                onClick={() => setIsEnhanceModalOpen(false)}
+                                className="p-1.5 text-slate-500 hover:text-white rounded-lg hover:bg-slate-900 transition-colors"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-3.5 text-xs text-slate-300">
+                            <div className="space-y-1">
+                                <p className="font-bold text-slate-500">ორიგინალი:</p>
+                                <div className="p-3 bg-slate-950/60 border border-slate-900 rounded-xl max-h-24 overflow-y-auto italic">
+                                    {prompt}
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="font-bold text-indigo-400">გაუმჯობესებული ვერსია:</p>
+                                <div className="p-3 bg-indigo-950/15 border border-indigo-900/30 rounded-xl max-h-48 overflow-y-auto font-medium text-indigo-100">
+                                    {enhancedPrompt}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="flex gap-2 pt-2">
+                            <button
+                                onClick={() => setIsEnhanceModalOpen(false)}
+                                className="flex-1 py-2 text-xs font-semibold rounded-xl border border-slate-800 hover:bg-slate-900 transition-all text-slate-300"
+                            >
+                                გაუქმება
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setPrompt(enhancedPrompt);
+                                    setIsEnhanceModalOpen(false);
+                                }}
+                                className="flex-1 py-2 text-xs font-semibold rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20"
+                            >
+                                მიღება (Accept)
                             </button>
                         </div>
                     </div>

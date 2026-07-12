@@ -57,6 +57,29 @@ const TONES = [
 const getPCfg  = (id: string) => PLATFORMS.find(p => p.id === id) ?? PLATFORMS[0];
 const getTCfg  = (id: string) => TONES.find(t => t.id === id);
 
+const getCalendarEventThumbnail = (headline: string, text: string, platform: string): string => {
+  const query = (headline + " " + text).toLowerCase();
+  if (query.includes("ყავა") || query.includes("coffee") || query.includes("კაფე") || query.includes("ესპრესო")) {
+    return "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=100&auto=format&fit=crop&q=80";
+  }
+  if (query.includes("ტანსაცმელი") || query.includes("მოდა") || query.includes("fashion") || query.includes("კაბა")) {
+    return "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=100&auto=format&fit=crop&q=80";
+  }
+  if (query.includes("სპორტი") || query.includes("ვარჯიში") || query.includes("gym") || query.includes("ფიტნეს")) {
+    return "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=100&auto=format&fit=crop&q=80";
+  }
+  if (query.includes("საჭმელი") || query.includes("food") || query.includes("რესტორანი") || query.includes("პიცა")) {
+    return "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=100&auto=format&fit=crop&q=80";
+  }
+  if (query.includes("ტექნოლოგია") || query.includes("tech") || query.includes("app") || query.includes("სოფტი")) {
+    return "https://images.unsplash.com/photo-1518770660439-4636190af475?w=100&auto=format&fit=crop&q=80";
+  }
+  if (platform === "instagram") {
+    return "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=100&auto=format&fit=crop&q=80";
+  }
+  return "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=100&auto=format&fit=crop&q=80";
+};
+
 const fmtDate = (s: string) =>
   new Date(s).toLocaleDateString("ka-GE", { day: "numeric", month: "long", year: "numeric" });
 
@@ -262,17 +285,27 @@ export default function GoniflowCalendar({
   const renderEvent = (info: EventContentArg) => {
     const ev = info.event.extendedProps as CalendarEvent;
     const p = getPCfg(ev.platform);
-    const t = getTCfg(ev.tone);
+    const thumbUrl = getCalendarEventThumbnail(ev.headline || "", ev.text || "", ev.platform);
     return (
-      <div className="px-1.5 py-0.5 w-full overflow-hidden relative group/event">
-        <div className="text-[11px] font-bold truncate leading-tight pr-4">{p.icon} {p.label}</div>
-        {t && <div className="text-[9px] opacity-70 truncate">{t.label.split(" ")[1]}</div>}
+      <div className="p-1 w-full overflow-hidden relative group/event flex gap-1.5 items-center select-none bg-slate-950/20 hover:bg-slate-950/40 rounded-lg transition-colors border-l-2" style={{ borderLeftColor: p.color }}>
+        <img 
+          src={thumbUrl} 
+          alt="Post thumbnail" 
+          className="w-6 h-6 rounded object-cover shrink-0 border border-slate-800"
+        />
+        <div className="flex-1 min-w-0 leading-tight">
+          <div className="text-[9px] font-bold text-white truncate flex items-center gap-0.5">
+            <span>{p.icon}</span>
+            <span className="truncate">{ev.headline || p.label}</span>
+          </div>
+          <p className="text-[8px] text-slate-400 truncate mt-0.5">{ev.text || "ტექსტის გარეშე"}</p>
+        </div>
         <button
           onClick={(e) => {
             e.stopPropagation();
             startCopy(ev);
           }}
-          className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/event:opacity-100 transition-opacity bg-slate-900/90 border border-slate-700 hover:bg-slate-800 text-[9px] p-0.5 rounded shadow"
+          className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/event:opacity-100 transition-opacity bg-slate-900/95 border border-slate-800 hover:bg-slate-800 text-[8px] p-1 rounded shadow cursor-pointer"
           title="კოპირება"
         >
           📋
@@ -813,11 +846,12 @@ export default function GoniflowCalendar({
         .fc-goniflow .fc-daygrid-day:hover { background: rgba(99,102,241,0.04); }
         .fc-goniflow .fc-event {
           border-radius: 6px !important; cursor: pointer !important;
-          transition: all 0.15s !important; font-size: 11px !important; border-width: 1px !important;
+          transition: all 0.15s !important; border: none !important;
+          background: transparent !important;
+          box-shadow: none !important;
         }
         .fc-goniflow .fc-event:hover {
-          filter: brightness(1.25); transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+          filter: brightness(1.2); transform: translateY(-0.5px);
         }
         .fc-goniflow .fc-more-link { color: #6366f1 !important; font-size: 0.65rem !important; font-weight: 700 !important; }
         .fc-goniflow .fc-popover {

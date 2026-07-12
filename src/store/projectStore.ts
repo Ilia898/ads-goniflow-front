@@ -31,6 +31,8 @@ interface ProjectState {
   savedAds: SavedAd[];
   isLoading: boolean;
   error: string | null;
+  isBackendConnected: boolean;
+  checkBackendConnection: () => Promise<void>;
 
   // Global editor states
   editorPrompt: string;
@@ -109,6 +111,20 @@ export const useProjectStore = create<ProjectState>()(
       savedAds: [],
       isLoading: false,
       error: null,
+      isBackendConnected: true,
+      checkBackendConnection: async () => {
+        try {
+          await apiFetch("/projects");
+          set({ isBackendConnected: true });
+        } catch (err) {
+          const msg = (err as Error).message || "";
+          if (msg.includes("Failed to fetch") || msg.includes("fetch") || msg.includes("Network")) {
+            set({ isBackendConnected: false });
+          } else {
+            set({ isBackendConnected: true });
+          }
+        }
+      },
 
       // Project modal state
       isProjectModalOpen: false,
@@ -228,12 +244,11 @@ export const useProjectStore = create<ProjectState>()(
         }
       },
 
-      // ── Projects ────────────────────────────────────────────────────────
       fetchProjects: async () => {
         set({ isLoading: true, error: null });
         try {
           const res = await apiFetch("/projects");
-          set({ projects: res.data || [], isLoading: false });
+          set({ projects: res.data || [], isLoading: false, isBackendConnected: true });
           if (res.data && res.data.length > 0) {
             if (!get().activeProject) {
               get().setActiveProject(res.data[0]);
@@ -244,6 +259,10 @@ export const useProjectStore = create<ProjectState>()(
         } catch (err) {
           console.warn("fetchProjects failed:", (err as Error).message);
           set({ projects: [], isLoading: false });
+          const msg = (err as Error).message || "";
+          if (msg.includes("Failed to fetch") || msg.includes("fetch") || msg.includes("Network")) {
+            set({ isBackendConnected: false });
+          }
         }
       },
 
