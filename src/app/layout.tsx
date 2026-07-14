@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 };
 
 import AuthInit from "../components/AuthInit";
+import Header from "../components/Header";
 
 export default function RootLayout({
   children,
@@ -27,10 +28,15 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased scroll-smooth`}
     >
-      <body className="min-h-full flex flex-col">
-        <AuthInit>{children}</AuthInit>
+      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100">
+        <AuthInit>
+          <Header />
+          <div className="flex-1 flex flex-col pt-16">
+            {children}
+          </div>
+        </AuthInit>
       </body>
     </html>
   );

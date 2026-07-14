@@ -4,6 +4,7 @@ import { apiFetch } from "../utils/api";
 interface User {
     id: string;
     email: string;
+    tier?: "free" | "pro" | "enterprise";
 }
 
 interface AuthState {
@@ -18,15 +19,25 @@ interface AuthState {
     resetPassword: (newPassword: string) => Promise<void>;
     checkAuth: () => Promise<void>;
     clearError: () => void;
+    updateUserTier: (tier: "free" | "pro" | "enterprise") => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
     user: null,
     isLoading: true,
     error: null,
     isAuthenticated: false,
-
+ 
     clearError: () => set({ error: null }),
+
+    updateUserTier: (tier) => {
+        const currentUser = get().user;
+        if (currentUser) {
+            const updated = { ...currentUser, tier };
+            localStorage.setItem("goniflow_user_tier_" + currentUser.id, tier);
+            set({ user: updated });
+        }
+    },
 
     login: async (email, password) => {
         set({ isLoading: true, error: null });
@@ -35,8 +46,10 @@ export const useAuthStore = create<AuthState>((set) => ({
                 method: "POST",
                 body: JSON.stringify({ email, password }),
             });
+            const user = res.data.user;
+            const savedTier = (typeof window !== "undefined" ? localStorage.getItem("goniflow_user_tier_" + user.id) || "free" : "free") as "free" | "pro" | "enterprise";
             set({
-                user: res.data.user,
+                user: { ...user, tier: savedTier },
                 isAuthenticated: true,
                 isLoading: false,
             });
@@ -105,8 +118,10 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ isLoading: true, error: null });
         try {
             const res = await apiFetch("/auth/me");
+            const user = res.user;
+            const savedTier = (typeof window !== "undefined" ? localStorage.getItem("goniflow_user_tier_" + user.id) || "free" : "free") as "free" | "pro" | "enterprise";
             set({
-                user: res.user,
+                user: { ...user, tier: savedTier },
                 isAuthenticated: true,
                 isLoading: false,
             });
