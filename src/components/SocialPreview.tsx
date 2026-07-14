@@ -98,20 +98,7 @@ export default function SocialPreview({ platform, ad, userEmail, onDownload }: S
           <span>12 Comments</span>
         </div>
 
-        <div className="p-1 flex items-center justify-around text-[#b0b3b8] font-semibold text-[13px]">
-          <button className="flex items-center justify-center gap-2 hover:bg-[#242526] py-2 flex-1 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4.5 h-4.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.633 10.25c.896 0 1.7.393 2.285 1.024v-3.725C8.918 5.5 10.668 3.5 12 3.5c1.332 0 3.082 2 3.082 4.049v3.725a3.2 3.2 0 0 1 2.285-1.024 3.2 3.2 0 1 1 0 6.4c-.896 0-1.7-.393-2.285-1.024v1.1c0 2.05-1.75 4.05-3.082 4.05-1.332 0-3.082-2-3.082-4.05v-1.1a3.2 3.2 0 0 1-2.285 1.024 3.2 3.2 0 1 1 0-6.4Z" />
-            </svg>
-            Like
-          </button>
-          <button className="flex items-center justify-center gap-2 hover:bg-[#242526] py-2 flex-1 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4.5 h-4.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 0 1-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z" />
-            </svg>
-            Comment
-          </button>
-        </div>
+       
       </div>
     );
   };

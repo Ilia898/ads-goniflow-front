@@ -33,7 +33,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-100">
         <AuthInit>
           <Header />
-          <div className="flex-1 flex flex-col pt-16">
+          <div className="flex-1 flex flex-col pt-16 w-full max-w-[1920px] mx-auto border-x border-slate-900/60">
             {children}
           </div>
         </AuthInit>

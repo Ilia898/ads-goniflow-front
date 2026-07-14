@@ -15,31 +15,43 @@ export default function Header() {
     const handleLogoClick = (e: React.MouseEvent) => {
         if (pathname === "/") {
             e.preventDefault();
-            // Use native history API so Next.js scroll-restoration doesn't interfere
             window.history.replaceState({}, "", "/");
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
-        // If on any other page, let the Link href="/" handle normal navigation
+    };
+
+    const scrollToSection = (sectionId: string) => {
+        const el = document.getElementById(sectionId);
+        if (el) {
+            const headerHeight = 64;
+            const top = el.getBoundingClientRect().top + window.scrollY - headerHeight;
+            window.scrollTo({ top, behavior: "smooth" });
+        }
     };
 
     const handleNavClick = (e: React.MouseEvent, sectionId: string) => {
         if (pathname === "/") {
-            // Already on landing page — scroll natively without involving Next.js router
+            // Already on landing page — scroll natively
             e.preventDefault();
             window.history.replaceState({}, "", `/#${sectionId}`);
-            const el = document.getElementById(sectionId);
-            if (el) {
-                const headerHeight = 64; // fixed header h-16 = 4rem = 64px
-                const top = el.getBoundingClientRect().top + window.scrollY - headerHeight;
-                window.scrollTo({ top, behavior: "smooth" });
-            }
+            scrollToSection(sectionId);
+        } else {
+            // Cross-page: navigate to "/" first, then scroll after mount
+            e.preventDefault();
+            router.push("/");
+            // After navigation settles, scroll to section
+            setTimeout(() => scrollToSection(sectionId), 350);
         }
-        // If on another page, let Link navigate to /#sectionId normally
     };
 
+    // Dynamically adjust padding/width based on whether we are in the workspace (/profile) or public landing page
+    const isProfilePage = pathname.startsWith("/profile");
+
     return (
-        <header className="fixed top-0 left-0 right-0 z-50 w-full border-b border-slate-900 bg-slate-950/80 backdrop-blur-md">
-            <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+        <header className="fixed top-0 left-0 right-0 z-50 w-full max-w-[1920px] mx-auto border-b border-slate-900 bg-slate-950/80 backdrop-blur-md">
+            <div className={`mx-auto h-16 flex items-center justify-between transition-all duration-300 ${
+                isProfilePage ? "w-full px-[30px]" : "max-w-6xl px-4"
+            }`}>
                 {/* Logo Section exactly as requested */}
                 <Link href="/" onClick={handleLogoClick} className="flex items-center group cursor-pointer pt-3">
                     <div className="relative">

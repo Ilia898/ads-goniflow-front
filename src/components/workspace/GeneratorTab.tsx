@@ -83,9 +83,7 @@ export default function GeneratorTab({
     const [enhancedPrompt, setEnhancedPrompt] = useState("");
     const [isEnhanceModalOpen, setIsEnhanceModalOpen] = useState(false);
 
-    // Multi-Platform Omnipost States
-    const [isOmnipostMode, setIsOmnipostMode] = useState(false);
-    const [omnipostPlatforms, setOmnipostPlatforms] = useState<string[]>(["facebook", "instagram"]);
+    // Multi-Platform States
     const [omnipostAds, setOmnipostAds] = useState<Record<string, GeneratedAd>>({});
 
     // Call to Action (CTA) States
@@ -113,7 +111,7 @@ export default function GeneratorTab({
         try {
             const { data } = await apiFetch("/ai/enhance-prompt", {
                 method: "POST",
-                body: JSON.stringify({ prompt, platform, tone })
+                body: JSON.stringify({ prompt, platform, tone, projectName: activeProject?.name })
             });
             setEnhancedPrompt(data.enhancedPrompt);
             setIsEnhanceModalOpen(true);
@@ -219,7 +217,7 @@ export default function GeneratorTab({
         if (!activeProject) return;
         setIsGenerating(true);
 
-        const targets = isOmnipostMode ? omnipostPlatforms : [platform];
+        const targets = [platform]; // This will be updated to use the new multi-select state
         const results: Record<string, GeneratedAd> = {};
 
         for (const plat of targets) {
@@ -291,7 +289,7 @@ export default function GeneratorTab({
 
         const mockResult = generateMockAd({
             textPrompt: prompt,
-            imagePrompt: chosenImagePrompt,
+            imagePrompt: chosenImagePrompt,            
             platform,
             tone,
             projectName: activeProject.name,
@@ -706,22 +704,6 @@ export default function GeneratorTab({
                             </span>
                         )}
                     </div>
-                    {/* Omnipost Switch */}
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                        <span className="text-[10px] font-bold text-slate-400">Omnipost რეჟიმი:</span>
-                        <input
-                            type="checkbox"
-                            checked={isOmnipostMode}
-                            onChange={(e) => {
-                                setIsOmnipostMode(e.target.checked);
-                                if (!e.target.checked) {
-                                    setOmnipostAds({});
-                                }
-                            }}
-                            className="sr-only peer"
-                        />
-                        <div className="relative w-7 h-4 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600"></div>
-                    </label>
                 </div>
 
                 {/* Smart Mode Indicator */}
@@ -741,71 +723,26 @@ export default function GeneratorTab({
                     )}
                 </div>
 
-                {/* ── PLATFORM, TONE & CTA DROPDOWNS ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 lg:max-[1250px]:gap-1">
+                {/* ── TONE & CTA DROPDOWNS ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
                     <div className="space-y-1.5">
-                        <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider block text-center">სოციალური<br className="hidden lg:block xl:hidden" />ქსელი</label>
-                        {isOmnipostMode ? (
-                            <div className="flex items-center gap-3 flex-wrap py-2 px-3 rounded-xl border border-slate-800 bg-slate-950/50">
-                                {[
-                                    { id: "facebook", label: "Facebook", emoji: "📘" },
-                                    { id: "instagram", label: "Instagram", emoji: "📸" },
-                                    { id: "linkedin", label: "LinkedIn", emoji: "💼" },
-                                    { id: "x", label: "X", emoji: "🐦" },
-                                ].map((p) => {
-                                    const isChecked = omnipostPlatforms.includes(p.id);
-                                    return (
-                                        <label key={p.id} className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={isChecked}
-                                                onChange={() => {
-                                                    if (isChecked) {
-                                                        if (omnipostPlatforms.length > 1) {
-                                                            setOmnipostPlatforms(omnipostPlatforms.filter(id => id !== p.id));
-                                                        }
-                                                    } else {
-                                                        setOmnipostPlatforms([...omnipostPlatforms, p.id]);
-                                                    }
-                                                }}
-                                                className="accent-indigo-500 rounded border-slate-800 bg-slate-950"
-                                            />
-                                            <span>{p.emoji} {p.label}</span>
-                                        </label>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <select
-                                value={platform}
-                                onChange={(e) => setPlatform(e.target.value)}
-                                className="w-full px-1 sm:px-2 lg:px-3 lg:max-[1250px]:px-0.5 py-2 sm:py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-[11px] sm:text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
-                            >
-                                <option value="facebook">📘 Facebook</option>
-                                <option value="instagram">📸 Instagram</option>
-                                <option value="linkedin">💼 LinkedIn</option>
-                                <option value="x">🐦 X (Twitter)</option>
-                            </select>
-                        )}
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider block text-center">ტონი<br className="hidden lg:block xl:hidden" />(Tone of Voice)</label>
+                        <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider block text-center">ტონი (Tone of Voice)</label>
                         <select
                             value={tone}
                             onChange={(e) => setTone(e.target.value)}
-                            className="w-full px-1 sm:px-2 lg:px-3 lg:max-[1250px]:px-0.5 py-2 sm:py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-[11px] sm:text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                            className="w-full px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-[11px] sm:text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
                         >
                             <option value="professional">💼 საქმიანი</option>
                             <option value="friendly">👋 მეგობრული</option>
                             <option value="funny">😎 ხუმარა</option>
                         </select>
                     </div>
-                    <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
-                        <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider block text-center">მოწოდება<br className="hidden lg:block xl:hidden" />(CTA)</label>
+                    <div className="space-y-1.5">
+                        <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider block text-center">მოწოდება (CTA)</label>
                         <select
                             value={ctaType}
                             onChange={(e) => setCtaType(e.target.value)}
-                            className="w-full px-1 sm:px-2 lg:px-3 lg:max-[1250px]:px-0.5 py-2 sm:py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-[11px] sm:text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                            className="w-full px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-100 text-[11px] sm:text-xs focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
                         >
                             <option value="გაიგე მეტი">🔗 გაიგე მეტი</option>
                             <option value="მოგვწერეთ">💬 მოგვწერეთ</option>
@@ -1133,6 +1070,44 @@ export default function GeneratorTab({
                     )}
                 </div>
 
+                {/* ── Platform Selector Checkboxes in Live Preview ── */}
+                <div className="space-y-1.5">
+                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">
+                        პლატფორმები
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                        {([
+                            { id: "facebook", label: "Facebook", emoji: "📘" },
+                            { id: "instagram", label: "Instagram", emoji: "📸" },
+                            { id: "linkedin", label: "LinkedIn", emoji: "💼" },
+                            { id: "x", label: "X (Twitter)", emoji: "🐦" },
+                        ] as { id: string; label: string; emoji: string }[]).map((p) => {
+                            const isChecked = platform === p.id; // This will be updated
+                            return (
+                                <button
+                                    key={p.id}
+                                    onClick={() => setPlatform(p.id)}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all cursor-pointer select-none ${
+                                        isChecked
+                                            ? "bg-indigo-950/40 border-indigo-500/50 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.08)]"
+                                            : "bg-slate-950/80 border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700"
+                                    }`}
+                                >
+                                    <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border transition-all shrink-0 ${
+                                        isChecked
+                                            ? "border-indigo-500 bg-indigo-600"
+                                            : "border-slate-700 bg-slate-900"
+                                    }`}>
+                                        {isChecked && <div className="w-1.5 h-1.5 rounded-full bg-white"></div>}
+                                    </div>
+                                    <span>{p.emoji}</span>
+                                    <span>{p.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
                 <div className="glass-panel rounded-2xl p-4 sm:p-6 min-h-[220px] sm:min-h-[300px] flex flex-col justify-center">
                     {isGenerating ? (
                         <div className="flex flex-col items-center justify-center py-12 gap-4">
@@ -1142,39 +1117,6 @@ export default function GeneratorTab({
                             </div>
                             <span className="text-slate-400 text-xs font-semibold animate-pulse">AI მუშაობს კამპანიის ტექსტზე...</span>
                         </div>
-                    ) : isOmnipostMode ? (
-                        <div className="space-y-6 max-h-[500px] overflow-y-auto pr-1 w-full">
-                            {omnipostPlatforms.map((plat) => {
-                                const ad = omnipostAds[plat] || {
-                                    headline: activeProject?.name || "სარეკლამო კამპანია",
-                                    text: prompt || "აქ გამოჩნდება თქვენი პოსტის ტექსტი...",
-                                    cta: ctaType === "custom" ? customCta : ctaType,
-                                    imageUrl: isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl || "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=80") : "",
-                                    hashtags: [],
-                                };
-                                return (
-                                    <div key={plat} className="space-y-2 border border-slate-900/60 p-4 rounded-2xl bg-slate-950/20">
-                                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                            <span>{plat.toUpperCase()} Preview</span>
-                                            <button
-                                                onClick={() => handleSavePlatformAd(plat, ad)}
-                                                className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white transition-all text-[9px] font-bold flex items-center gap-1 shadow-sm cursor-pointer"
-                                            >
-                                                💾 Save {plat.toUpperCase()}
-                                            </button>
-                                        </div>
-                                        <div className="w-full max-w-[420px] mx-auto">
-                                            <SocialPreview
-                                                platform={plat}
-                                                ad={ad}
-                                                userEmail={userEmail}
-                                                onDownload={handleDownload}
-                                            />
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
                     ) : (
                         <div className="w-full max-w-[420px] mx-auto space-y-4">
                             <SocialPreview
@@ -1183,7 +1125,7 @@ export default function GeneratorTab({
                                     headline: generatedAd?.headline || activeProject?.name || "სარეკლამო კამპანია",
                                     text: prompt || "აქ გამოჩნდება თქვენი პოსტის ტექსტი...",
                                     cta: (ctaType === "custom" ? customCta : ctaType) || generatedAd?.cta || "გაიგე მეტი",
-                                    imageUrl: isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl || "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=80") : "",
+                                    imageUrl: isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl || "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&auto=format&fit=crop&q=80") : "",
                                     hashtags: prompt.includes("#") ? [] : (generatedAd?.hashtags || []),
                                 }}
                                 userEmail={userEmail}
@@ -1196,7 +1138,7 @@ export default function GeneratorTab({
                 {/* ── Engagement Analytics Score ── */}
                 {prompt.trim() && (() => {
                     const finalCta = ctaType === "custom" ? customCta : ctaType;
-                    const engagement = evaluateEngagement(prompt, isOmnipostMode ? omnipostPlatforms[0] || "facebook" : platform, finalCta);
+                    const engagement = evaluateEngagement(prompt, platform, finalCta);
                     return (
                         <div className="glass-panel rounded-2xl p-4 sm:p-5 space-y-3.5 border border-slate-800 bg-slate-950/40 backdrop-blur-xl animate-fade-in text-xs w-full">
                             <div className="flex items-center justify-between border-b border-slate-900 pb-2.5">

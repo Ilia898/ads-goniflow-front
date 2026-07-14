@@ -165,27 +165,7 @@ export default function LandingPage() {
                                 </div>
                             </div>
 
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                    აირჩიეთ პლატფორმა
-                                </label>
-                                <div className="grid grid-cols-4 gap-1.5">
-                                    {(Object.keys(SIMULATED_POSTS) as Array<keyof typeof SIMULATED_POSTS>).map((key) => (
-                                        <button
-                                            key={key}
-                                            onClick={() => setSelectedTab(key)}
-                                            className={`py-2 px-1 text-center rounded-lg border text-xs font-bold transition-all cursor-pointer ${
-                                                selectedTab === key
-                                                    ? "bg-indigo-950/40 border-indigo-500/50 text-indigo-300 scale-102"
-                                                    : "bg-slate-950 border-slate-900 text-slate-500 hover:text-slate-300"
-                                            }`}
-                                        >
-                                            <span className="block text-sm mb-0.5">{SIMULATED_POSTS[key].emoji}</span>
-                                            {SIMULATED_POSTS[key].platformName.split(" ")[0]}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+
 
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
@@ -196,6 +176,7 @@ export default function LandingPage() {
                                 </div>
                             </div>
 
+                            {/* Tone & CTA */}
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                                     ტონი & მოწოდება (CTA)
@@ -227,7 +208,45 @@ export default function LandingPage() {
                     <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-12 gap-4 ">
                         {/* Preview Display */}
                         <div className="md:col-span-7 glass-panel rounded-2xl p-5 border-slate-900/60 shadow-2xl hover:border-slate-800/80 transition-all duration-300 flex flex-col justify-between min-h-[360px]">
-                            <div className="space-y-3.5">
+                            <div className="space-y-4">
+                                {/* Platform Selectors with checkboxes (At least one must be selected) */}
+                                <div className="space-y-1.5 pb-2 border-b border-slate-900/60">
+                                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">
+                                        აქტიური პლატფორმები (LIVE PREVIEW)
+                                    </label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(Object.keys(SIMULATED_POSTS) as Array<keyof typeof SIMULATED_POSTS>).map((key) => {
+                                            const isSelected = selectedTab === key;
+                                            return (
+                                                <button
+                                                    key={key}
+                                                    onClick={() => {
+                                                        // Require at least one to be selected (since we only show preview of the clicked one)
+                                                        setSelectedTab(key);
+                                                    }}
+                                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-bold transition-all cursor-pointer select-none ${
+                                                        isSelected
+                                                            ? "bg-indigo-950/40 border-indigo-500/50 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.1)]"
+                                                            : "bg-slate-950/80 border-slate-900 text-slate-500 hover:text-slate-400"
+                                                    }`}
+                                                >
+                                                    <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-all ${
+                                                        isSelected
+                                                            ? "border-indigo-500 bg-indigo-600 text-white"
+                                                            : "border-slate-800 bg-slate-900 text-transparent"
+                                                    }`}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="3" stroke="currentColor" className="w-2.5 h-2.5">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                                        </svg>
+                                                    </div>
+                                                    <span>{SIMULATED_POSTS[key].emoji}</span>
+                                                    <span>{SIMULATED_POSTS[key].platformName.split(" ")[0]}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
                                 <div className="flex items-center gap-2.5">
                                     <div className="w-8 h-8 rounded-full bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-base">
                                         {activePost.emoji}
