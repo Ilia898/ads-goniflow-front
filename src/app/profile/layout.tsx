@@ -175,8 +175,8 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
     if (!user) return null;
 
     return (
-        <div className="bg-[#030712] min-h-[calc(100vh-4rem)] w-full flex justify-center">
-            <div className="flex w-full max-w-[1920px] min-h-[calc(100vh-4rem)] bg-linear-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100 font-sans relative overflow-x-hidden shadow-2xl border-x border-slate-900/60">
+        <div className="bg-[#030712] h-[calc(100vh-4rem)] w-full flex justify-center overflow-hidden">
+            <div className="flex w-full max-w-[1920px] h-full bg-linear-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100 font-sans relative overflow-hidden shadow-2xl border-x border-slate-900/60">
                 {/* Backdrop — mobile only, shown behind the expanded overlay */}
                 {isMobileMenuOpen && (
                     <div
@@ -194,52 +194,16 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                           }`
                 }`}>
                 <div className="space-y-6">
-                    {/* Brand & Toggle Button */}
-                    {sidebarExpanded ? (
-                        <div className="flex items-center justify-between gap-2 animate-fade-in">
-                            <div
-                                onClick={() => router.push("/")}
-                                className="flex items-center gap-3 cursor-pointer group hover:opacity-95 transition-all min-w-0"
-                                title="მთავარ გვერდზე გადასვლა"
-                            >
-                                <div className="h-9 w-9 rounded-xl bg-linear-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 group-hover:scale-102 transition-all shrink-0">
-                                    <span className="font-extrabold text-white text-base">G</span>
-                                </div>
-                                <div className="relative pt-2 shrink-0 select-none">
-                                    {/* Subtitle/tag above */}
-                                    <span className="absolute top-[-4px] right-0 text-[7px] font-bold text-slate-500 uppercase tracking-widest transition-colors group-hover:text-indigo-400">
-                                        @ Ads
-                                    </span>
-                                    <span className="font-black text-lg tracking-tight text-white block leading-none">
-                                        Goni<span className="text-[#3d30f2] transition-all group-hover:drop-shadow-[0_0_8px_rgba(61,48,242,0.4)]">Flow</span>
-                                    </span>
-                                    <span className="text-[9px] text-indigo-400/80 font-bold block leading-none mt-1.5 uppercase tracking-wider">WORKSPACE</span>
-                                </div>
-                            </div>
-
-                            {/* Collapse button — mobile only, shown inside expanded mobile overlay */}
-                            {!isDesktop && (
-                                <button
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                    className="p-1.5 text-slate-500 hover:text-white rounded-lg hover:bg-slate-900 transition-colors shrink-0"
-                                    title="მენიუს შეკუმშვა"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-                                    </svg>
-                                </button>
-                            )}
-                        </div>
-                    ) : (
-                        /* Burger icon — mobile only, shown in collapsed w-20 sidebar */
-                        <div className="flex justify-center animate-fade-in">
+                    {/* Mobile close button */}
+                    {!isDesktop && sidebarExpanded && (
+                        <div className="flex justify-end animate-fade-in">
                             <button
-                                onClick={() => setIsMobileMenuOpen(true)}
-                                className="p-2.5 text-slate-400 hover:text-white rounded-xl bg-slate-900/60 border border-slate-800/80 hover:bg-slate-900 transition-all hover:scale-105"
-                                title="მენიუს გაშლა"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className="p-1.5 text-slate-500 hover:text-white rounded-lg hover:bg-slate-900 transition-colors shrink-0"
+                                title="მენიუს შეკუმშვა"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
                                 </svg>
                             </button>
                         </div>
@@ -563,7 +527,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col min-w-0 overflow-x-hidden overflow-y-auto">
                 {/* Header */}
-                <header className="relative z-30 h-16 border-b border-slate-800 bg-slate-950/40 backdrop-blur-xl px-4 sm:px-8 flex items-center justify-between shrink-0">
+                <header className="sticky top-0 z-30 h-16 border-b border-slate-800 bg-slate-950/95 backdrop-blur-xl px-4 sm:px-8 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                         {/* Mobile burger button */}
                         {!isDesktop && (
