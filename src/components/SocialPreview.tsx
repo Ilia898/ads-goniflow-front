@@ -7,9 +7,12 @@ interface SocialPreviewProps {
   platform: string;
   ad: GeneratedAd | null;
   userEmail: string;
+  onDownload?: () => void;
+  onCopyImage?: () => void;
+  onCopyText?: () => void;
 }
 
-export default function SocialPreview({ platform, ad, userEmail }: SocialPreviewProps) {
+export default function SocialPreview({ platform, ad, userEmail, onDownload, onCopyImage, onCopyText }: SocialPreviewProps) {
   const userName = userEmail ? userEmail.split("@")[0] : "მომხმარებელი";
   const userAvatarChar = userName.charAt(0).toUpperCase();
 
@@ -56,32 +59,63 @@ export default function SocialPreview({ platform, ad, userEmail }: SocialPreview
         </div>
 
         {/* Text Content */}
-        <div className="px-4 pb-3 text-[15px] whitespace-pre-line leading-relaxed">
+        <div className="px-4 pb-3 text-[15px] whitespace-pre-line leading-relaxed relative group/text">
+          {onCopyText && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopyText();
+              }}
+              className="absolute top-0 right-4 p-1.5 rounded-lg bg-black/40 hover:bg-black/70 text-white opacity-0 group-hover/text:opacity-100 transition-all flex items-center justify-center shadow-lg border border-slate-800 text-xs"
+              title="ტექსტის კოპირება"
+            >
+              📋
+            </button>
+          )}
           {ad.text}
           <div className="mt-2 text-[#385898] hover:underline font-normal text-sm flex flex-wrap gap-1">
             {ad.hashtags.join(" ")}
           </div>
         </div>
 
-        {/* Image / Link Area */}
-        <div className="border-t border-b border-[#242526] bg-[#242526]">
-          {ad.imageUrl && (
+        {/* Image Area */}
+        {ad.imageUrl && (
+          <div className="border-t border-b border-[#242526] bg-[#242526] relative group">
             <img 
               src={ad.imageUrl} 
               alt="Facebook Ad Preview" 
               className="w-full h-[240px] object-cover" 
             />
-          )}
-          <div className="p-3 bg-[#242526] flex items-center justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <span className="text-[12px] text-[#b0b3b8] uppercase tracking-wider block truncate">GONIFLOW.GE</span>
-              <span className="font-semibold text-[16px] text-white block truncate mt-0.5">{ad.headline || "ინოვაციური პროდუქტი"}</span>
-            </div>
-            <button className="bg-[#3a3b3c] hover:bg-[#4e4f50] text-white font-semibold text-[14px] px-4 py-2 rounded-lg shrink-0 transition-colors">
-              {ad.cta}
-            </button>
+            {(onDownload || onCopyImage) && (
+              <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                {onCopyImage && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCopyImage();
+                    }}
+                    className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white flex items-center justify-center shadow-lg border border-slate-800 text-xs"
+                    title="სურათის კოპირება"
+                  >
+                    📋
+                  </button>
+                )}
+                {onDownload && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDownload();
+                    }}
+                    className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white flex items-center justify-center shadow-lg border border-slate-800 text-xs"
+                    title="სურათის ჩამოტვირთვა"
+                  >
+                    📥
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Action Bar */}
         <div className="px-4 py-2 text-[13px] text-[#b0b3b8] flex items-center justify-between border-b border-[#242526]">
@@ -94,20 +128,7 @@ export default function SocialPreview({ platform, ad, userEmail }: SocialPreview
           <span>12 Comments</span>
         </div>
 
-        <div className="p-1 flex items-center justify-around text-[#b0b3b8] font-semibold text-[13px]">
-          <button className="flex items-center justify-center gap-2 hover:bg-[#242526] py-2 flex-1 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4.5 h-4.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.633 10.25c.896 0 1.7.393 2.285 1.024v-3.725C8.918 5.5 10.668 3.5 12 3.5c1.332 0 3.082 2 3.082 4.049v3.725a3.2 3.2 0 0 1 2.285-1.024 3.2 3.2 0 1 1 0 6.4c-.896 0-1.7-.393-2.285-1.024v1.1c0 2.05-1.75 4.05-3.082 4.05-1.332 0-3.082-2-3.082-4.05v-1.1a3.2 3.2 0 0 1-2.285 1.024 3.2 3.2 0 1 1 0-6.4Z" />
-            </svg>
-            Like
-          </button>
-          <button className="flex items-center justify-center gap-2 hover:bg-[#242526] py-2 flex-1 rounded-lg transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4.5 h-4.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 0 1-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z" />
-            </svg>
-            Comment
-          </button>
-        </div>
+       
       </div>
     );
   };
@@ -118,7 +139,7 @@ export default function SocialPreview({ platform, ad, userEmail }: SocialPreview
         {/* Header */}
         <div className="p-3.5 flex items-center justify-between border-b border-[#262626]">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full p-[1.5px] bg-gradient-to-tr from-yellow-500 via-red-500 to-purple-600">
+            <div className="w-8 h-8 rounded-full p-[1.5px] bg-linear-to-tr from-yellow-500 via-red-500 to-purple-600">
               <div className="w-full h-full rounded-full bg-black border border-black flex items-center justify-center font-bold text-xs">
                 {userAvatarChar}
               </div>
@@ -138,13 +159,41 @@ export default function SocialPreview({ platform, ad, userEmail }: SocialPreview
         </div>
 
         {/* Main Post Image */}
-        <div className="relative aspect-square bg-[#121212]">
+        <div className="relative aspect-square bg-[#121212] group">
           {ad.imageUrl && (
             <img 
               src={ad.imageUrl} 
               alt="Instagram Ad Preview" 
               className="w-full h-full object-cover" 
             />
+          )}
+          {ad.imageUrl && (onDownload || onCopyImage) && (
+            <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+              {onCopyImage && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCopyImage();
+                  }}
+                  className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white flex items-center justify-center shadow-lg border border-slate-800 text-xs"
+                  title="სურათის კოპირება"
+                >
+                  📋
+                </button>
+              )}
+              {onDownload && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDownload();
+                  }}
+                  className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white flex items-center justify-center shadow-lg border border-slate-800 text-xs"
+                  title="სურათის ჩამოტვირთვა"
+                >
+                  📥
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -175,7 +224,19 @@ export default function SocialPreview({ platform, ad, userEmail }: SocialPreview
           <div className="font-bold text-xs">842 likes</div>
 
           {/* Caption */}
-          <div className="text-xs space-y-1">
+          <div className="text-xs space-y-1 relative group/text">
+            {onCopyText && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCopyText();
+                }}
+                className="absolute top-0 right-0 p-1.5 rounded-lg bg-black/40 hover:bg-black/70 text-white opacity-0 group-hover/text:opacity-100 transition-all flex items-center justify-center shadow-lg border border-slate-800"
+                title="ტექსტის კოპირება"
+              >
+                📋
+              </button>
+            )}
             <p className="leading-relaxed">
               <span className="font-bold mr-1.5">{userName}</span>
               <span className="whitespace-pre-line text-slate-200">{ad.text}</span>
@@ -223,7 +284,19 @@ export default function SocialPreview({ platform, ad, userEmail }: SocialPreview
         </div>
 
         {/* Text */}
-        <div className="px-4 pb-3 text-[14px] whitespace-pre-line leading-relaxed text-slate-200">
+        <div className="px-4 pb-3 text-[14px] whitespace-pre-line leading-relaxed text-slate-200 relative group/text">
+          {onCopyText && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopyText();
+              }}
+              className="absolute top-0 right-4 p-1.5 rounded-lg bg-black/40 hover:bg-black/70 text-white opacity-0 group-hover/text:opacity-100 transition-all flex items-center justify-center shadow-lg border border-slate-800 text-xs"
+              title="ტექსტის კოპირება"
+            >
+              📋
+            </button>
+          )}
           {ad.text}
           <div className="mt-2 text-indigo-400 font-semibold flex flex-wrap gap-1">
             {ad.hashtags.join(" ")}
@@ -231,24 +304,43 @@ export default function SocialPreview({ platform, ad, userEmail }: SocialPreview
         </div>
 
         {/* Image Card */}
-        <div className="bg-[#121619] border-t border-b border-slate-800 cursor-pointer">
-          {ad.imageUrl && (
+        {ad.imageUrl && (
+          <div className="bg-[#121619] border-t border-b border-slate-800 cursor-pointer relative group">
             <img 
               src={ad.imageUrl} 
               alt="LinkedIn Ad Preview" 
               className="w-full h-[220px] object-cover" 
             />
-          )}
-          <div className="p-3 bg-[#121619] border-t border-slate-800">
-            <span className="font-bold text-sm block truncate text-slate-200">{ad.headline || "ბიზნეს გადაწყვეტილება"}</span>
-            <div className="flex items-center justify-between gap-4 mt-2">
-              <span className="text-xs text-slate-400">goniflow.ge</span>
-              <button className="border border-indigo-400 text-indigo-400 hover:bg-indigo-400/10 font-semibold text-xs px-3.5 py-1.5 rounded-full transition-colors">
-                {ad.cta}
-              </button>
-            </div>
+            {(onDownload || onCopyImage) && (
+              <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                {onCopyImage && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCopyImage();
+                    }}
+                    className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white flex items-center justify-center shadow-lg border border-slate-800 text-xs"
+                    title="სურათის კოპირება"
+                  >
+                    📋
+                  </button>
+                )}
+                {onDownload && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDownload();
+                    }}
+                    className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white flex items-center justify-center shadow-lg border border-slate-800 text-xs"
+                    title="სურათის ჩამოტვირთვა"
+                  >
+                    📥
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Reaction info */}
         <div className="px-4 py-2 flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800">
@@ -285,7 +377,7 @@ export default function SocialPreview({ platform, ad, userEmail }: SocialPreview
             <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center font-bold text-white text-sm shrink-0">
               {userAvatarChar}
             </div>
-            <div>
+            <div className="relative group/text">
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-[15px] hover:underline cursor-pointer">{userName}</span>
                 <span className="text-[14px] text-slate-500">@{userName.toLowerCase()}</span>
@@ -299,6 +391,18 @@ export default function SocialPreview({ platform, ad, userEmail }: SocialPreview
               <div className="mt-1.5 text-sky-500 flex flex-wrap gap-1 text-[14px]">
                 {ad.hashtags.join(" ")}
               </div>
+              {onCopyText && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCopyText();
+                  }}
+                  className="absolute top-0 right-0 p-1.5 rounded-lg bg-black/40 hover:bg-black/70 text-white opacity-0 group-hover/text:opacity-100 transition-all flex items-center justify-center shadow-lg border border-slate-800 text-xs"
+                  title="ტექსტის კოპირება"
+                >
+                  📋
+                </button>
+              )}
             </div>
           </div>
           <button className="text-slate-500 hover:text-sky-500 transition-colors">
@@ -309,24 +413,43 @@ export default function SocialPreview({ platform, ad, userEmail }: SocialPreview
         </div>
 
         {/* Link / Image Block */}
-        <div className="ml-13 border border-slate-800 rounded-2xl overflow-hidden bg-[#0c0d0e] cursor-pointer hover:bg-slate-900/40 transition-colors">
-          {ad.imageUrl && (
+        {ad.imageUrl && (
+          <div className="ml-13 border border-slate-800 rounded-2xl overflow-hidden bg-[#0c0d0e] cursor-pointer hover:bg-slate-900/40 transition-colors relative group">
             <img 
               src={ad.imageUrl} 
               alt="X Ad Preview" 
               className="w-full h-[200px] object-cover" 
             />
-          )}
-          <div className="p-3 border-t border-slate-800 flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <span className="text-[13px] text-slate-500 truncate block">goniflow.ge</span>
-              <span className="text-[14px] font-semibold text-slate-200 block truncate mt-0.5">{ad.headline || "სიახლე ჩვენთან"}</span>
-            </div>
-            <button className="bg-white hover:bg-slate-200 text-black font-bold text-xs px-4 py-2 rounded-full shrink-0 transition-colors">
-              {ad.cta}
-            </button>
+            {(onDownload || onCopyImage) && (
+              <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                {onCopyImage && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCopyImage();
+                    }}
+                    className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white flex items-center justify-center shadow-lg border border-slate-800 text-xs"
+                    title="სურათის კოპირება"
+                  >
+                    📋
+                  </button>
+                )}
+                {onDownload && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDownload();
+                    }}
+                    className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white flex items-center justify-center shadow-lg border border-slate-800 text-xs"
+                    title="სურათის ჩამოტვირთვა"
+                  >
+                    📥
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Stats */}
         <div className="ml-13 flex items-center justify-between text-slate-500 text-xs pt-1 max-w-sm">

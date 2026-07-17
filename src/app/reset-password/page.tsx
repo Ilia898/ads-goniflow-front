@@ -12,15 +12,22 @@ export default function ResetPasswordPage() {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [validationError, setValidationError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
-    const [hasToken, setHasToken] = useState(false);
+    const [hasToken] = useState<boolean>(() => {
+        if (typeof window !== "undefined") {
+            const hash = window.location.hash;
+            if (hash) {
+                const params = new URLSearchParams(hash.substring(1));
+                return !!params.get("access_token");
+            }
+        }
+        return false;
+    });
 
     const { resetPassword, isLoading, error, clearError } = useAuthStore();
     const router = useRouter();
 
     useEffect(() => {
         clearError();
-        setValidationError(null);
-        setSuccessMessage(null);
 
         // Parse token from hash fragment in client browser
         if (typeof window !== "undefined") {
@@ -36,7 +43,6 @@ export default function ResetPasswordPage() {
                     if (refreshToken) {
                         document.cookie = `sb-refresh-token=${refreshToken}; path=/; max-age=2592000; SameSite=Lax`;
                     }
-                    setHasToken(true);
                 }
             }
         }
@@ -74,13 +80,13 @@ export default function ResetPasswordPage() {
             setTimeout(() => {
                 router.push("/login");
             }, 3000);
-        } catch (err) {
+        } catch {
             // Error is handled globally by Zustand store
         }
     };
 
     return (
-        <div className="flex-1 flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 min-h-screen text-slate-100 font-sans">
+        <div className="flex-1 flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-linear-to-tr from-slate-950 via-slate-900 to-indigo-950 min-h-[calc(100vh-4rem)] text-slate-100 font-sans">
             <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
                 <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600/30 text-indigo-400 border border-indigo-500/20 shadow-lg shadow-indigo-500/5 mb-4">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">

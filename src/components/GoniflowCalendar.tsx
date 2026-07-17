@@ -6,7 +6,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
-import type { EventInput, EventClickArg, DateSelectArg, EventDropArg } from "@fullcalendar/core";
+import type { EventInput, EventClickArg, DateSelectArg, EventDropArg, EventContentArg } from "@fullcalendar/core";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -57,6 +57,29 @@ const TONES = [
 const getPCfg  = (id: string) => PLATFORMS.find(p => p.id === id) ?? PLATFORMS[0];
 const getTCfg  = (id: string) => TONES.find(t => t.id === id);
 
+const getCalendarEventThumbnail = (headline: string, text: string, platform: string): string => {
+  const query = (headline + " " + text).toLowerCase();
+  if (query.includes("ყავა") || query.includes("coffee") || query.includes("კაფე") || query.includes("ესპრესო")) {
+    return "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=100&auto=format&fit=crop&q=80";
+  }
+  if (query.includes("ტანსაცმელი") || query.includes("მოდა") || query.includes("fashion") || query.includes("კაბა")) {
+    return "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=100&auto=format&fit=crop&q=80";
+  }
+  if (query.includes("სპორტი") || query.includes("ვარჯიში") || query.includes("gym") || query.includes("ფიტნეს")) {
+    return "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=100&auto=format&fit=crop&q=80";
+  }
+  if (query.includes("საჭმელი") || query.includes("food") || query.includes("რესტორანი") || query.includes("პიცა")) {
+    return "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=100&auto=format&fit=crop&q=80";
+  }
+  if (query.includes("ტექნოლოგია") || query.includes("tech") || query.includes("app") || query.includes("სოფტი")) {
+    return "https://images.unsplash.com/photo-1518770660439-4636190af475?w=100&auto=format&fit=crop&q=80";
+  }
+  if (platform === "instagram") {
+    return "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=100&auto=format&fit=crop&q=80";
+  }
+  return "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=100&auto=format&fit=crop&q=80";
+};
+
 const fmtDate = (s: string) =>
   new Date(s).toLocaleDateString("ka-GE", { day: "numeric", month: "long", year: "numeric" });
 
@@ -79,6 +102,18 @@ export default function GoniflowCalendar({
   onPendingEventConsumed,
 }: GoniflowCalendarProps) {
   const calRef = useRef<FullCalendar>(null);
+
+  // ── Track viewport width for responsive calendar toolbar ───────────────────
+  const [windowWidth, setWindowWidth] = useState(() => {
+    if (typeof window !== "undefined") return window.innerWidth;
+    return 1024;
+  });
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // ── Simple date-click modal (just date/time + navigate button) ──────────────
   const [quickModal, setQuickModal] = useState<{ date: string; time: string } | null>(null);
@@ -103,12 +138,19 @@ export default function GoniflowCalendar({
   const [dpDate, setDpDate] = useState(new Date().toISOString().split("T")[0]);
   const [dpTime, setDpTime] = useState("10:00");
 
-  // ── Handle pending from generator ──────────────────────────────────────────
+  const [prevPendingEvent, setPrevPendingEvent] = useState<Omit<CalendarEvent, "id" | "start"> | null>(null);
+
+  // Sync prop changes directly during rendering phase to avoid cascading useEffect warnings
+  if (pendingEvent && pendingEvent !== prevPendingEvent) {
+    setPrevPendingEvent(pendingEvent);
+    setDayPicker(pendingEvent);
+    setDpDate(new Date().toISOString().split("T")[0]);
+    setDpTime("10:00");
+  }
+
+  // ── Handle pending consumption after render ─────────────────────────────────
   useEffect(() => {
     if (pendingEvent) {
-      setDayPicker(pendingEvent);
-      setDpDate(new Date().toISOString().split("T")[0]);
-      setDpTime("10:00");
       onPendingEventConsumed?.();
     }
   }, [pendingEvent, onPendingEventConsumed]);
@@ -240,20 +282,30 @@ export default function GoniflowCalendar({
   };
 
   // ── Custom event content ───────────────────────────────────────────────────
-  const renderEvent = (info: any) => {
-    const ev: CalendarEvent = info.event.extendedProps;
+  const renderEvent = (info: EventContentArg) => {
+    const ev = info.event.extendedProps as CalendarEvent;
     const p = getPCfg(ev.platform);
-    const t = getTCfg(ev.tone);
+    const thumbUrl = getCalendarEventThumbnail(ev.headline || "", ev.text || "", ev.platform);
     return (
-      <div className="px-1.5 py-0.5 w-full overflow-hidden relative group/event">
-        <div className="text-[11px] font-bold truncate leading-tight pr-4">{p.icon} {p.label}</div>
-        {t && <div className="text-[9px] opacity-70 truncate">{t.label.split(" ")[1]}</div>}
+      <div className="p-1 w-full overflow-hidden relative group/event flex gap-1.5 items-center select-none bg-slate-950/20 hover:bg-slate-950/40 rounded-lg transition-colors border-l-2" style={{ borderLeftColor: p.color }}>
+        <img 
+          src={thumbUrl} 
+          alt="Post thumbnail" 
+          className="w-6 h-6 rounded object-cover shrink-0 border border-slate-800"
+        />
+        <div className="flex-1 min-w-0 leading-tight">
+          <div className="text-[9px] font-bold text-white truncate flex items-center gap-0.5">
+            <span>{p.icon}</span>
+            <span className="truncate">{ev.headline || p.label}</span>
+          </div>
+          <p className="text-[8px] text-slate-400 truncate mt-0.5">{ev.text || "ტექსტის გარეშე"}</p>
+        </div>
         <button
           onClick={(e) => {
             e.stopPropagation();
             startCopy(ev);
           }}
-          className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/event:opacity-100 transition-opacity bg-slate-900/90 border border-slate-700 hover:bg-slate-800 text-[9px] p-0.5 rounded shadow"
+          className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/event:opacity-100 transition-opacity bg-slate-900/95 border border-slate-800 hover:bg-slate-800 text-[8px] p-1 rounded shadow cursor-pointer"
           title="კოპირება"
         >
           📋
@@ -269,27 +321,31 @@ export default function GoniflowCalendar({
 
       {/* ── Pending event banner ───────────────────────────────────────────── */}
       {dayPicker && !copySource && !quickModal && (
-        <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 animate-fade-in">
-          <span className="text-emerald-400 text-lg">📅</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-emerald-300">გენერირებული პოსტი მზადაა!</p>
-            <p className="text-xs text-emerald-400/70 mt-0.5">
-              {getPCfg(dayPicker.platform).icon} {getPCfg(dayPicker.platform).label} · {getTCfg(dayPicker.tone)?.label}
-            </p>
-            {dayPicker.headline && (
-              <p className="text-[10px] text-emerald-400/60 mt-0.5 truncate">{dayPicker.headline}</p>
-            )}
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 animate-fade-in">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <span className="text-emerald-400 text-lg">📅</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-emerald-300">გენერირებული პოსტი მზადაა!</p>
+              <p className="text-xs text-emerald-400/70 mt-0.5">
+                {getPCfg(dayPicker.platform).icon} {getPCfg(dayPicker.platform).label} · {getTCfg(dayPicker.tone)?.label}
+              </p>
+              {dayPicker.headline && (
+                <p className="text-[10px] text-emerald-400/60 mt-0.5 truncate">{dayPicker.headline}</p>
+              )}
+            </div>
           </div>
-          <button
-            onClick={() => {
-              setCopySource(null);
-              setQuickModal(null);
-            }}
-            className="text-xs font-bold text-emerald-300 bg-emerald-500/20 hover:bg-emerald-500/30 px-3 py-1.5 rounded-xl transition-colors"
-          >
-            თარიღის არჩევა →
-          </button>
-          <button onClick={() => setDayPicker(null)} className="text-emerald-600 hover:text-emerald-400 transition-colors text-xs">✕</button>
+          <div className="flex items-center gap-2.5 justify-end sm:justify-start">
+            <button
+              onClick={() => {
+                setCopySource(null);
+                setQuickModal(null);
+              }}
+              className="text-xs font-bold text-emerald-300 bg-emerald-500/20 hover:bg-emerald-500/30 px-3 py-1.5 rounded-xl transition-colors shrink-0"
+            >
+              თარიღის არჩევა →
+            </button>
+            <button onClick={() => setDayPicker(null)} className="text-emerald-600 hover:text-emerald-400 transition-colors text-xs p-1">✕</button>
+          </div>
         </div>
       )}
 
@@ -299,7 +355,11 @@ export default function GoniflowCalendar({
           ref={calRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
           initialView="dayGridMonth"
-          headerToolbar={{
+          headerToolbar={windowWidth < 768 ? {
+            left: "prev,next",
+            center: "title",
+            right: "dayGridMonth,listWeek"
+          } : {
             left: "prev,next today",
             center: "title",
             right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
@@ -352,7 +412,7 @@ export default function GoniflowCalendar({
                   type="date"
                   value={quickModal.date}
                   onChange={e => setQuickModal({ ...quickModal, date: e.target.value })}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-indigo-500/70 [color-scheme:dark]"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-indigo-500/70 scheme-dark"
                 />
               </div>
               <div className="space-y-1.5">
@@ -361,7 +421,7 @@ export default function GoniflowCalendar({
                   type="time"
                   value={quickModal.time}
                   onChange={e => setQuickModal({ ...quickModal, time: e.target.value })}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-indigo-500/70 [color-scheme:dark]"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-indigo-500/70 scheme-dark"
                 />
               </div>
             </div>
@@ -385,7 +445,7 @@ export default function GoniflowCalendar({
                   onNavigateToGenerator(quickModal.date + "T" + quickModal.time + ":00");
                   setQuickModal(null);
                 }}
-                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-indigo-600/15 transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2"
+                className="w-full py-3 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-indigo-600/15 transition-all hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2"
               >
                 🚀 პოსტის შექმნა
               </button>
@@ -509,12 +569,12 @@ export default function GoniflowCalendar({
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">თარიღი</label>
                 <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-indigo-500/50 [color-scheme:dark]" />
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-indigo-500/50 scheme-dark" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">დრო</label>
                 <input type="time" value={editTime} onChange={e => setEditTime(e.target.value)}
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-indigo-500/50 [color-scheme:dark]" />
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-indigo-500/50 scheme-dark" />
               </div>
             </div>
 
@@ -552,7 +612,7 @@ export default function GoniflowCalendar({
                 გაუქმება
               </button>
               <button onClick={saveEdit} disabled={!editDate}
-                className="flex-1 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-indigo-600/15 transition-all active:scale-[0.98] disabled:opacity-50">
+                className="flex-1 py-2.5 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-indigo-600/15 transition-all active:scale-[0.98] disabled:opacity-50">
                 ✓ შენახვა
               </button>
             </div>
@@ -597,9 +657,9 @@ export default function GoniflowCalendar({
               <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">კოპირება ამ თარიღზე</label>
               <div className="grid grid-cols-2 gap-2">
                 <input type="date" value={copyDate} onChange={e => setCopyDate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-sky-500/50 [color-scheme:dark]" />
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-sky-500/50 scheme-dark" />
                 <input type="time" value={copyTime} onChange={e => setCopyTime(e.target.value)}
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-sky-500/50 [color-scheme:dark]" />
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-sky-500/50 scheme-dark" />
               </div>
             </div>
 
@@ -609,7 +669,7 @@ export default function GoniflowCalendar({
                 გაუქმება
               </button>
               <button onClick={confirmCopy} disabled={!copyDate}
-                className="flex-1 py-2.5 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-sky-600/15 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5">
+                className="flex-1 py-2.5 bg-linear-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-sky-600/15 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5">
                 📋 კოპირება
               </button>
             </div>
@@ -646,9 +706,9 @@ export default function GoniflowCalendar({
               <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">თარიღი და დრო</label>
               <div className="grid grid-cols-2 gap-2">
                 <input type="date" value={dpDate} onChange={e => setDpDate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-emerald-500/50 [color-scheme:dark]" />
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-emerald-500/50 scheme-dark" />
                 <input type="time" value={dpTime} onChange={e => setDpTime(e.target.value)}
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-emerald-500/50 [color-scheme:dark]" />
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-slate-100 text-xs outline-none focus:border-emerald-500/50 scheme-dark" />
               </div>
             </div>
 
@@ -658,7 +718,7 @@ export default function GoniflowCalendar({
                 გაუქმება
               </button>
               <button onClick={confirmPending} disabled={!dpDate}
-                className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-emerald-600/15 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5">
+                className="flex-1 py-2.5 bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-emerald-600/15 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5">
                 ✓ კალენდარში დამატება
               </button>
             </div>
@@ -786,11 +846,12 @@ export default function GoniflowCalendar({
         .fc-goniflow .fc-daygrid-day:hover { background: rgba(99,102,241,0.04); }
         .fc-goniflow .fc-event {
           border-radius: 6px !important; cursor: pointer !important;
-          transition: all 0.15s !important; font-size: 11px !important; border-width: 1px !important;
+          transition: all 0.15s !important; border: none !important;
+          background: transparent !important;
+          box-shadow: none !important;
         }
         .fc-goniflow .fc-event:hover {
-          filter: brightness(1.25); transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+          filter: brightness(1.2); transform: translateY(-0.5px);
         }
         .fc-goniflow .fc-more-link { color: #6366f1 !important; font-size: 0.65rem !important; font-weight: 700 !important; }
         .fc-goniflow .fc-popover {

@@ -12,10 +12,17 @@ interface LibraryTabProps {
     deleteSavedAd: (projectId: string, adId: string) => Promise<void>;
     handleLoadAdToGenerator: (ad: SavedAd) => void;
     showNotification: (type: "success" | "error", message: string) => void;
-    openCreateModal: () => void;
     setPlatform: (platform: string) => void;
     setActiveTab: (tab: string) => void;
     userEmail: string;
+    resetEditorState: () => void;
+}
+
+interface SocialAccount {
+    platform: string;
+    access_token: string;
+    platform_account_id?: string;
+    account_id?: string;
 }
 
 export default function LibraryTab({
@@ -25,12 +32,33 @@ export default function LibraryTab({
     deleteSavedAd,
     handleLoadAdToGenerator,
     showNotification,
-    openCreateModal,
     setPlatform,
     setActiveTab,
-    userEmail
+    userEmail,
+    resetEditorState
 }: LibraryTabProps) {
     const [activeShareMenuId, setActiveShareMenuId] = useState<string | null>(null);
+    const [activeCardId, setActiveCardId] = useState<string | null>(null);
+
+    const resetCardScroll = (cardId: string) => {
+        if (typeof document !== "undefined") {
+            const cardElement = document.getElementById(`card-${cardId}`);
+            if (cardElement) {
+                const scrollable = cardElement.querySelector('.scrollable-content');
+                if (scrollable) scrollable.scrollTop = 0;
+            }
+        }
+    };
+
+    const toggleActiveCard = (cardId: string) => {
+        if (activeCardId === cardId) {
+            resetCardScroll(cardId);
+            setActiveCardId(null);
+        } else {
+            if (activeCardId) resetCardScroll(activeCardId);
+            setActiveCardId(cardId);
+        }
+    };
 
     const currentPlatformId = activeTab.replace("saved-", "");
 
@@ -57,7 +85,7 @@ export default function LibraryTab({
             const { data: accounts } = await apiFetch(`/api/social/accounts?email=${encodeURIComponent(userEmail)}`);
             if (!accounts || accounts.length === 0) return false;
 
-            const account = accounts.find((a: any) => a.platform === currentPlatformId);
+            const account = accounts.find((a: SocialAccount) => a.platform === currentPlatformId);
             if (!account || !account.access_token) return false;
 
             const payload = {
@@ -76,32 +104,44 @@ export default function LibraryTab({
 
             showNotification("success", "პოსტი წარმატებით გამოქვეყნდა პლატფორმაზე!");
             return true;
-        } catch (error: any) {
+        } catch (error) {
             console.error("Direct publish error:", error);
             return false; // Fallback to manual share
         }
     };
 
     return (
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+        <div 
+            onClick={() => {
+                if (activeCardId) resetCardScroll(activeCardId);
+                setActiveCardId(null);
+                setActiveShareMenuId(null);
+            }}
+            className="flex-1 overflow-y-auto custom-scrollbar py-6"
+        >
+            <div className="max-w-[1580px] mx-auto w-full  space-y-6">
             {/* Header */}
-            <div className={`p-5 rounded-2xl border flex items-center justify-between ${meta.headerBg}`}>
-                <div className="flex items-center gap-4">
-                    <div className="text-4xl">{meta.icon}</div>
-                    <div>
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <div className={`p-2 sm:p-3 lg:p-5  rounded-2xl border flex flex-col lg:flex-row lg:items-center justify-between gap-4 ${meta.headerBg} `}>
+                <div className="flex items-center gap-4 min-w-0 ">
+                    <div className="text-3xl sm:text-4xl shrink-0">{meta.icon}</div>
+                    <div className="min-w-0 ">
+                        <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2 truncate ">
                             {meta.label} ბიბლიოთეკა
                         </h2>
-                        <p className="text-sm text-slate-400 mt-1">შენახული პოსტები - {activeProject?.name}</p>
+                        <p className="text-xs sm:text-sm text-slate-400 mt-1 truncate">შენახული პოსტები - {activeProject?.name}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className={`px-4 py-2 rounded-xl text-sm font-bold border ${meta.badge}`}>
+                <div className="flex items-center justify-center gap-2.5 sm:gap-3 shrink-0">
+                    <div className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold border shrink-0 ${meta.badge}`}>
                         {filteredAds.length} პოსტი
                     </div>
                     <button
-                        onClick={() => { setPlatform(currentPlatformId); setActiveTab("generator"); }}
-                        className="px-5 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-600/10"
+                        onClick={() => {
+                            resetEditorState();
+                            setPlatform(currentPlatformId);
+                            setActiveTab("generator");
+                        }}
+                        className="px-4 py-2 sm:px-5 sm:py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-600/10 shrink-0"
                     >
                         ✨ ახალი პოსტი
                     </button>
@@ -118,23 +158,42 @@ export default function LibraryTab({
                         შექმენით თქვენი პირველი {meta.label} პოსტი გენერატორის გამოყენებით.
                     </p>
                     <button
-                        onClick={() => { setPlatform(currentPlatformId); setActiveTab("generator"); }}
+                        onClick={() => {
+                            resetEditorState();
+                            setPlatform(currentPlatformId);
+                            setActiveTab("generator");
+                        }}
                         className="mt-1 px-5 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-600/10"
                     >
                         🚀 პოსტის შექმნა
                     </button>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 animate-fade-in">
-                    {filteredAds.map((ad: any) => (
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(305px,1fr))] gap-4 animate-fade-in">
+                    {filteredAds.map((ad: SavedAd) => (
                         <div
                             key={ad.id}
-                            className="group glass-panel rounded-2xl overflow-hidden relative transition-all duration-300 hover:shadow-2xl hover:shadow-black/40"
+                            id={`card-${ad.id}`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                toggleActiveCard(ad.id);
+                            }}
+                            onMouseLeave={(e) => {
+                                const scrollable = e.currentTarget.querySelector('.scrollable-content');
+                                if (scrollable) scrollable.scrollTop = 0;
+                            }}
+                            className={`group glass-panel rounded-2xl overflow-hidden relative transition-all duration-300 hover:shadow-2xl hover:shadow-black/40 w-full ${
+                                activeCardId === ad.id ? "shadow-2xl shadow-black/40" : ""
+                            }`}
                             style={{ height: "420px" }}
                         >
-                            {/* Inner content wrapper — slides UP by 56px on hover, becomes scrollable */}
+                            {/* Inner content wrapper — slides UP by 56px on hover/active, becomes scrollable */}
                             <div
-                                className="absolute inset-0 transition-transform duration-300 ease-in-out group-hover:-translate-y-14 overflow-hidden group-hover:overflow-y-auto"
+                                className={`absolute inset-0 transition-transform duration-300 ease-in-out overflow-hidden scrollable-content ${
+                                    activeCardId === ad.id
+                                        ? "-translate-y-14 overflow-y-auto"
+                                        : "group-hover:-translate-y-14 group-hover:overflow-y-auto"
+                                }`}
                                 style={{ scrollbarWidth: "none" }}
                             >
                                 <div className="w-full relative">
@@ -152,20 +211,31 @@ export default function LibraryTab({
                                 </div>
                             </div>
 
-                            {/* Top fade — appears on hover to soften the clipped top edge */}
-                            <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-[#0a0e1a]/90 to-transparent pointer-events-none z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            {/* Top fade — appears on hover/active to soften the clipped top edge */}
+                            <div className={`absolute top-0 left-0 right-0 h-10 bg-linear-to-b from-[#0a0e1a]/90 to-transparent pointer-events-none z-10 transition-opacity duration-300 ${
+                                activeCardId === ad.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                            }`} />
 
                             {/* Bottom fade — smooth transition into button bar */}
-                            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent pointer-events-none z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ bottom: "56px" }} />
+                            <div className={`absolute bottom-0 left-0 right-0 h-20 bg-linear-to-t from-slate-950 via-slate-950/80 to-transparent pointer-events-none z-10 transition-opacity duration-300 ${
+                                activeCardId === ad.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                            }`} style={{ bottom: "56px" }} />
 
-                            {/* Default bottom fade — visible only when NOT hovered */}
-                            <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-slate-950 to-transparent pointer-events-none z-10 group-hover:opacity-0 transition-opacity duration-300" />
+                            {/* Default bottom fade — visible only when NOT hovered/active */}
+                            <div className={`absolute bottom-0 left-0 right-0 h-16 bg-linear-to-t from-slate-950 to-transparent pointer-events-none z-10 transition-opacity duration-300 ${
+                                activeCardId === ad.id ? "opacity-0" : "group-hover:opacity-0"
+                            }`} />
 
-                            {/* Button bar — starts below the card, slides UP into the card on hover */}
-                            <div className="absolute bottom-0 left-0 right-0 h-14 bg-slate-950 flex items-center gap-1.5 px-3 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out z-20">
+                            {/* Button bar — starts below the card, slides UP into the card on hover/active */}
+                            <div className={`absolute bottom-0 left-0 right-0 h-14 bg-slate-950 flex items-center gap-1.5 px-3 transform transition-transform duration-300 ease-in-out z-20 ${
+                                activeCardId === ad.id ? "translate-y-0" : "translate-y-full group-hover:translate-y-0"
+                            }`}>
                                 {/* Edit */}
                                 <button
-                                    onClick={() => handleLoadAdToGenerator(ad)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleLoadAdToGenerator(ad);
+                                    }}
                                     className={`flex-1 flex items-center justify-center gap-1.5 h-10 text-[11px] font-bold rounded-xl border transition-all ${meta.editBtn}`}
                                 >
                                     ✏️ რედაქტირება
@@ -260,9 +330,15 @@ export default function LibraryTab({
 
                                 {/* Copy */}
                                 <button
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(`${ad.text}\n\n${ad.cta || ""}`);
-                                        showNotification("success", "ტექსტი წარმატებით კოპირდა!");
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        try {
+                                            await navigator.clipboard.writeText(`${ad.text}\n\n${ad.cta || ""}`);
+                                            showNotification("success", "ტექსტი წარმატებით კოპირდა!");
+                                        } catch (err) {
+                                            console.error("Clipboard writeText failed:", err);
+                                            showNotification("error", "კოპირება ვერ მოხერხდა.");
+                                        }
                                     }}
                                     className="h-10 w-10 text-slate-300 hover:text-white transition-all rounded-xl border border-slate-700/50 bg-slate-900/50 hover:bg-slate-800/60 flex items-center justify-center shrink-0"
                                     title="კოპირება"
@@ -275,7 +351,10 @@ export default function LibraryTab({
 
                                 {/* Delete */}
                                 <button
-                                    onClick={() => activeProject && deleteSavedAd(activeProject.id, ad.id)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (activeProject) deleteSavedAd(activeProject.id, ad.id);
+                                    }}
                                     className="h-10 w-10 text-slate-600 hover:text-rose-400 transition-all rounded-xl border border-slate-800 hover:bg-rose-950/30 hover:border-rose-900/50 flex items-center justify-center shrink-0"
                                     title="წაშლა"
                                 >
@@ -288,6 +367,7 @@ export default function LibraryTab({
                     ))}
                 </div>
             )}
+            </div>
         </div>
     );
 }

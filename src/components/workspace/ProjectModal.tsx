@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { Project } from "../../store/projectStore";
 import { uploadImage } from "../../utils/uploadImage";
 
@@ -23,8 +23,14 @@ export default function ProjectModal({ isOpen, project, onClose, onSubmit }: Pro
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
     const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
 
-    // Sync state when modal opens or active project changes
-    useEffect(() => {
+    const [prevProject, setPrevProject] = useState<Project | null>(null);
+    const [prevIsOpen, setPrevIsOpen] = useState(false);
+
+    // Sync state directly during rendering when modal opens or active project changes
+    if (isOpen !== prevIsOpen || project?.id !== prevProject?.id) {
+        setPrevIsOpen(isOpen);
+        setPrevProject(project);
+        
         if (isOpen) {
             if (project) {
                 setProjName(project.name);
@@ -51,7 +57,7 @@ export default function ProjectModal({ isOpen, project, onClose, onSubmit }: Pro
                 setProjLogoFileName(null);
             }
         }
-    }, [isOpen, project]);
+    }
 
     const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -153,7 +159,7 @@ export default function ProjectModal({ isOpen, project, onClose, onSubmit }: Pro
                         {!projLogoFile ? (
                             <div
                                 onClick={() => logoFileInputRef.current?.click()}
-                                className="border border-dashed border-slate-700 hover:border-indigo-500/50 rounded-xl p-5 text-center cursor-pointer bg-slate-950/30 hover:bg-indigo-500/[0.03] transition-all group"
+                                className="border border-dashed border-slate-700 hover:border-indigo-500/50 rounded-xl p-5 text-center cursor-pointer bg-slate-950/30 hover:bg-indigo-500/3 transition-all group"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7 text-slate-600 group-hover:text-indigo-400 mx-auto mb-2 transition-colors">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />

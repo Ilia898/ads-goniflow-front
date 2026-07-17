@@ -31,6 +31,8 @@ interface ProjectState {
   savedAds: SavedAd[];
   isLoading: boolean;
   error: string | null;
+  isBackendConnected: boolean;
+  checkBackendConnection: () => Promise<void>;
 
   // Global editor states
   editorPrompt: string;
@@ -109,6 +111,20 @@ export const useProjectStore = create<ProjectState>()(
       savedAds: [],
       isLoading: false,
       error: null,
+      isBackendConnected: true,
+      checkBackendConnection: async () => {
+        try {
+          await apiFetch("/projects");
+          set({ isBackendConnected: true });
+        } catch (err) {
+          const msg = (err as Error).message || "";
+          if (msg.includes("Failed to fetch") || msg.includes("fetch") || msg.includes("Network")) {
+            set({ isBackendConnected: false });
+          } else {
+            set({ isBackendConnected: true });
+          }
+        }
+      },
 
       // Project modal state
       isProjectModalOpen: false,
@@ -228,12 +244,11 @@ export const useProjectStore = create<ProjectState>()(
         }
       },
 
-      // ── Projects ────────────────────────────────────────────────────────
       fetchProjects: async () => {
         set({ isLoading: true, error: null });
         try {
           const res = await apiFetch("/projects");
-          set({ projects: res.data || [], isLoading: false });
+          set({ projects: res.data || [], isLoading: false, isBackendConnected: true });
           if (res.data && res.data.length > 0) {
             if (!get().activeProject) {
               get().setActiveProject(res.data[0]);
@@ -244,6 +259,10 @@ export const useProjectStore = create<ProjectState>()(
         } catch (err) {
           console.warn("fetchProjects failed:", (err as Error).message);
           set({ projects: [], isLoading: false });
+          const msg = (err as Error).message || "";
+          if (msg.includes("Failed to fetch") || msg.includes("fetch") || msg.includes("Network")) {
+            set({ isBackendConnected: false });
+          }
         }
       },
 
@@ -256,6 +275,7 @@ export const useProjectStore = create<ProjectState>()(
           });
           const updated = [res.data, ...get().projects];
           set({ projects: updated, activeProject: res.data, isLoading: false });
+          get().resetEditorState();
           get().fetchSavedAds(res.data.id);
         } catch (err) {
           set({ error: (err as Error).message, isLoading: false });
@@ -292,6 +312,7 @@ export const useProjectStore = create<ProjectState>()(
             activeProject: updated.length > 0 ? updated[0] : null,
             isLoading: false,
           });
+          get().resetEditorState();
           if (updated.length > 0) {
             get().fetchSavedAds(updated[0].id);
           } else {
@@ -305,6 +326,7 @@ export const useProjectStore = create<ProjectState>()(
 
       setActiveProject: (project) => {
         set({ activeProject: project });
+        get().resetEditorState();
         if (project) {
           get().fetchSavedAds(project.id);
         } else {
@@ -356,6 +378,15 @@ export const useProjectStore = create<ProjectState>()(
       name: "goniflow-project-storage",
       partialize: (state) => ({
         activeProject: state.activeProject,
+        editorPrompt: state.editorPrompt,
+        editorImagePrompt: state.editorImagePrompt,
+        editorPlatform: state.editorPlatform,
+        editorTone: state.editorTone,
+        editorUploadedImage: state.editorUploadedImage,
+        editorUploadedImageName: state.editorUploadedImageName,
+        editorGeneratedAd: state.editorGeneratedAd,
+        scheduleTargetDate: state.scheduleTargetDate,
+        editingCalendarEvent: state.editingCalendarEvent,
       }),
     }
   )

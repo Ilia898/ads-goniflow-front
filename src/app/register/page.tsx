@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "../../store/authStore";
 
@@ -15,12 +14,9 @@ export default function RegisterPage() {
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     const { register, isLoading, error, clearError } = useAuthStore();
-    const router = useRouter();
 
     useEffect(() => {
         clearError();
-        setValidationError(null);
-        setSuccessMessage(null);
     }, [clearError]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -50,13 +46,13 @@ export default function RegisterPage() {
             setEmail("");
             setPassword("");
             setConfirmPassword("");
-        } catch (err) {
+        } catch {
             // Error is handled globally by Zustand store
         }
     };
 
     return (
-        <div className="flex-1 flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 min-h-screen text-slate-100 font-sans">
+        <div className="flex-1 flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-linear-to-tr from-slate-950 via-slate-900 to-indigo-950 min-h-[calc(100vh-4rem)] text-slate-100 font-sans">
             <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
                 <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600/30 text-indigo-400 border border-indigo-500/20 shadow-lg shadow-indigo-500/5 mb-4">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">

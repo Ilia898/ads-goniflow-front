@@ -7,7 +7,7 @@ import DashboardTab from "../../../components/workspace/DashboardTab";
 
 export default function DashboardPage() {
     const router = useRouter();
-    const { activeProject, savedAds, calendarEvents: allCalendarEvents } = useProjectStore();
+    const { activeProject, savedAds, calendarEvents: allCalendarEvents, resetEditorState } = useProjectStore();
     const calendarEvents = activeProject
         ? allCalendarEvents.filter((ev) => ev.projectId === activeProject.id)
         : [];
@@ -16,6 +16,7 @@ export default function DashboardPage() {
         if (tab === "calendar") {
             router.push("/profile/calendar");
         } else if (tab === "generator") {
+            resetEditorState();
             router.push("/profile/generator");
         } else if (tab === "dashboard") {
             router.push("/profile/dashboard");

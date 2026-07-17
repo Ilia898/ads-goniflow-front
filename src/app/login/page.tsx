@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "../../store/authStore";
+import { useProjectStore } from "../../store/projectStore";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -12,12 +13,15 @@ export default function LoginPage() {
     const [validationError, setValidationError] = useState<string | null>(null);
 
     const { login, isLoading, error, clearError, isAuthenticated } = useAuthStore();
+    const { resetEditorState } = useProjectStore();
     const router = useRouter();
 
     useEffect(() => {
         clearError();
-        setValidationError(null);
-    }, [clearError]);
+        setTimeout(() => {
+            resetEditorState();
+        }, 0);
+    }, [clearError, resetEditorState]);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -36,14 +40,15 @@ export default function LoginPage() {
 
         try {
             await login(email, password);
+            resetEditorState();
             router.push("/profile");
-        } catch (err) {
+        } catch {
             // Error is handled globally by Zustand store
         }
     };
 
     return (
-        <div className="flex-1 flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 min-h-screen text-slate-100 font-sans">
+        <div className="flex-1 flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-linear-to-tr from-slate-950 via-slate-900 to-indigo-950 min-h-[calc(100vh-4rem)] text-slate-100 font-sans">
             <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
                 <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600/30 text-indigo-400 border border-indigo-500/20 shadow-lg shadow-indigo-500/5 mb-4">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">

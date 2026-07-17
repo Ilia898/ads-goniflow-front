@@ -22,7 +22,9 @@ export default function CalendarPage() {
         setEditorPrompt,
         setEditorImagePrompt,
         setEditorUploadedImage,
-        setEditorUploadedImageName
+        setEditorUploadedImageName,
+        resetEditorState,
+        setEditorGeneratedAd
     } = useProjectStore();
 
     const calendarEvents = activeProject
@@ -30,18 +32,26 @@ export default function CalendarPage() {
         : [];
 
     const handleNavigateToGenerator = useCallback((isoDateTime: string) => {
+        resetEditorState();
         setScheduleTargetDate(isoDateTime);
         router.push("/profile/generator");
-    }, [setScheduleTargetDate, router]);
+    }, [resetEditorState, setScheduleTargetDate, router]);
 
     const handleNavigateToGeneratorForEdit = useCallback((event: CalendarEvent) => {
         setEditingCalendarEvent(event);
         setEditorPlatform(event.platform);
         setEditorTone(event.tone);
-        setEditorPrompt(event.headline || event.text || "");
+        setEditorPrompt(event.text || "");
         setEditorImagePrompt("");
         setEditorUploadedImage(null);
         setEditorUploadedImageName(null);
+        setEditorGeneratedAd({
+            headline: event.headline || "",
+            text: event.text || "",
+            cta: event.cta || "",
+            imageUrl: "",
+            hashtags: [],
+        });
         router.push("/profile/generator");
     }, [
         setEditingCalendarEvent,
@@ -51,6 +61,7 @@ export default function CalendarPage() {
         setEditorImagePrompt,
         setEditorUploadedImage,
         setEditorUploadedImageName,
+        setEditorGeneratedAd,
         router
     ]);
 
@@ -73,6 +84,7 @@ export default function CalendarPage() {
                     )}
                     <button
                         onClick={() => {
+                            resetEditorState();
                             setEditorPlatform("facebook");
                             setEditorTone("professional");
                             router.push("/profile/generator");

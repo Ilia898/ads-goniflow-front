@@ -79,9 +79,10 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
         return () => window.removeEventListener("resize", handleResize);
     }, []);
 
-    // Close mobile overlay on page navigation
     useEffect(() => {
-        setIsMobileMenuOpen(false);
+        setTimeout(() => {
+            setIsMobileMenuOpen(false);
+        }, 0);
     }, [pathname]);
 
 
@@ -103,8 +104,9 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
     const handleLogout = async () => {
         try {
             await logout();
+            resetEditorState();
             router.push("/login");
-        } catch (err) {
+        } catch {
             // Handled by store
         }
     };
@@ -158,7 +160,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
 
     if (isAuthLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-950 text-slate-100 font-sans">
+            <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] bg-slate-950 text-slate-100 font-sans">
                 <div className="flex flex-col items-center gap-4">
                     <svg className="animate-spin h-10 w-10 text-indigo-500" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -173,28 +175,24 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
     if (!user) return null;
 
     return (
-        <div className="flex min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100 font-sans relative overflow-x-hidden">
-            {/* Backdrop — mobile only, shown behind the expanded overlay */}
-            {isMobileMenuOpen && (
-                <div
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="fixed inset-0 bg-black/50 backdrop-blur-xs z-40 transition-opacity duration-300"
-                />
-            )}
+        <div className="bg-[#030712] min-h-[calc(100vh-4rem)] w-full flex justify-center">
+            <div className="flex w-full max-w-[1920px] min-h-[calc(100vh-4rem)] bg-linear-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100 font-sans relative overflow-x-hidden shadow-2xl border-x border-slate-900/60">
+                {/* Backdrop — mobile only, shown behind the expanded overlay */}
+                {isMobileMenuOpen && (
+                    <div
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="fixed top-16 bottom-0 inset-x-0 bg-black/50 backdrop-blur-xs z-40 transition-opacity duration-300"
+                    />
+                )}
 
-            {/*
-              Spacer (always in flow):
-              - Desktop (isDesktop): w-66 — matches the always-visible full sidebar
-              - Mobile (!isDesktop): w-20 — matches the collapsed icon sidebar; overlay never shifts this
-            */}
-            <div className={`${isDesktop ? "w-66" : "w-20"} shrink-0`} />
-
-            {/* Sidebar — always fixed, JS-controlled width */}
-            <aside className={`fixed inset-y-0 left-0 z-50 border-r border-slate-800 bg-slate-950/95 backdrop-blur-xl flex flex-col justify-between transition-all duration-300 ${
-                sidebarExpanded
-                    ? "w-66 p-6"
-                    : "w-20 px-3 py-6"
-            }`}>
+                {/* Sidebar — sticky on desktop, fixed slide-over on mobile */}
+                <aside className={`border-r border-slate-800 bg-slate-950/95 backdrop-blur-xl flex flex-col justify-between transition-all duration-300 z-40 ${
+                    isDesktop
+                        ? "sticky top-0 h-[calc(100vh-4rem)] w-66 p-6"
+                        : `fixed top-16 bottom-0 left-0 w-66 p-6 transition-transform duration-300 ${
+                            isMobileMenuOpen ? "translate-x-0 animate-fade-in" : "-translate-x-full"
+                          }`
+                }`}>
                 <div className="space-y-6">
                     {/* Brand & Toggle Button */}
                     {sidebarExpanded ? (
@@ -204,12 +202,18 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                                 className="flex items-center gap-3 cursor-pointer group hover:opacity-95 transition-all min-w-0"
                                 title="მთავარ გვერდზე გადასვლა"
                             >
-                                <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 group-hover:scale-102 transition-all shrink-0">
+                                <div className="h-9 w-9 rounded-xl bg-linear-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 group-hover:scale-102 transition-all shrink-0">
                                     <span className="font-extrabold text-white text-base">G</span>
                                 </div>
-                                <div className="truncate">
-                                    <span className="font-black text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent group-hover:text-indigo-200 transition-colors block leading-none">GoniFlow</span>
-                                    <span className="text-[10px] text-indigo-400 font-bold block leading-none mt-1">POST WORKSPACE</span>
+                                <div className="relative pt-2 shrink-0 select-none">
+                                    {/* Subtitle/tag above */}
+                                    <span className="absolute top-[-4px] right-0 text-[7px] font-bold text-slate-500 uppercase tracking-widest transition-colors group-hover:text-indigo-400">
+                                        @ Ads
+                                    </span>
+                                    <span className="font-black text-lg tracking-tight text-white block leading-none">
+                                        Goni<span className="text-[#3d30f2] transition-all group-hover:drop-shadow-[0_0_8px_rgba(61,48,242,0.4)]">Flow</span>
+                                    </span>
+                                    <span className="text-[9px] text-indigo-400/80 font-bold block leading-none mt-1.5 uppercase tracking-wider">WORKSPACE</span>
                                 </div>
                             </div>
 
@@ -559,8 +563,20 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col min-w-0 overflow-x-hidden overflow-y-auto">
                 {/* Header */}
-                <header className="relative z-30 h-20 border-b border-slate-800 bg-slate-950/40 backdrop-blur-xl px-4 sm:px-8 flex items-center justify-between shrink-0">
+                <header className="relative z-30 h-16 border-b border-slate-800 bg-slate-950/40 backdrop-blur-xl px-4 sm:px-8 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+                        {/* Mobile burger button */}
+                        {!isDesktop && (
+                            <button
+                                onClick={() => setIsMobileMenuOpen(true)}
+                                className="p-2 -ml-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-900 transition-colors shrink-0"
+                                title="მენიუს გახსნა"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                                </svg>
+                            </button>
+                        )}
                         {/* Page Title / Section */}
                         <div className="flex flex-col border-r border-slate-800 pr-3 sm:pr-5 shrink-0">
                             <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500">Workspace</span>
@@ -583,7 +599,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                                 {/* Project Details Column */}
                                 <div className="flex flex-col min-w-0 leading-tight">
                                     <div className="flex items-center gap-1.5 sm:gap-2">
-                                        <span className="font-extrabold text-xs text-white truncate max-w-[80px] sm:max-w-[150px]">
+                                        <span className="font-extrabold text-xs text-white truncate max-w-[120px] sm:max-w-[200px]">
                                             {activeProject.name}
                                         </span>
                                         {activeProject.link && (
@@ -636,7 +652,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
 
 
                 {/* Workspace Tabs Content */}
-                <div className="flex-1 p-3 sm:p-5 lg:p-8">
+                <div className="flex-1 p-2 sm:p-4 lg:p-6">
                     {children}
                 </div>
             </main>
@@ -675,6 +691,23 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                                 <span className="font-mono text-slate-400 select-all truncate max-w-[180px]" title={user.id}>{user.id}</span>
                             </div>
                             <div className="flex justify-between items-center">
+                                <span className="text-slate-400 font-medium">აქტიური პაკეტი:</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-extrabold uppercase text-indigo-400 bg-indigo-950/40 border border-indigo-900/50 px-2 py-0.5 rounded-md text-[10px]">
+                                        {user?.tier || "free"}
+                                    </span>
+                                    <button
+                                        onClick={() => {
+                                            setIsSettingsOpen(false);
+                                            router.push("/#pricing");
+                                        }}
+                                        className="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold underline transition-colors cursor-pointer"
+                                    >
+                                        შეცვლა
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex justify-between items-center">
                                 <span className="text-slate-400 font-medium">სესიის სტატუსი:</span>
                                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
                                     ავტორიზებული
@@ -702,7 +735,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
 
             {/* Custom Notification Modal Overlay */}
             {notification && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+                <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
                     <div className={`w-full max-w-xs rounded-2xl border p-6 shadow-2xl space-y-4 animate-scale-in ${
                         notification.type === "success"
                             ? "bg-slate-950 border-emerald-800/60"
@@ -747,5 +780,6 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
                 </div>
             )}
         </div>
+            </div>
     );
 }
