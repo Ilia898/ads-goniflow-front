@@ -330,10 +330,15 @@ export default function LibraryTab({
 
                                 {/* Copy */}
                                 <button
-                                    onClick={(e) => {
+                                    onClick={async (e) => {
                                         e.stopPropagation();
-                                        navigator.clipboard.writeText(`${ad.text}\n\n${ad.cta || ""}`);
-                                        showNotification("success", "ტექსტი წარმატებით კოპირდა!");
+                                        try {
+                                            await navigator.clipboard.writeText(`${ad.text}\n\n${ad.cta || ""}`);
+                                            showNotification("success", "ტექსტი წარმატებით კოპირდა!");
+                                        } catch (err) {
+                                            console.error("Clipboard writeText failed:", err);
+                                            showNotification("error", "კოპირება ვერ მოხერხდა.");
+                                        }
                                     }}
                                     className="h-10 w-10 text-slate-300 hover:text-white transition-all rounded-xl border border-slate-700/50 bg-slate-900/50 hover:bg-slate-800/60 flex items-center justify-center shrink-0"
                                     title="კოპირება"

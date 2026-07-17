@@ -126,7 +126,6 @@ export default function GeneratorTab({
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [copied, setCopied] = useState(false);
     const [isScheduling, setIsScheduling] = useState(false);
     const [scheduleDate, setScheduleDate] = useState("");
     const [scheduleTime, setScheduleTime] = useState("12:00");
@@ -481,83 +480,33 @@ export default function GeneratorTab({
         }
     };
 
-    const handleCopy = async () => {
+    const handleCopyText = async () => {
         const adText = generatedAd?.text || prompt;
         const hashtagsText = generatedAd?.hashtags?.length ? `\n\n${generatedAd.hashtags.join(" ")}` : "";
         const fullText = `${adText}${hashtagsText}`;
 
+        try {
+            await navigator.clipboard.writeText(fullText);
+            showNotification("success", "ტექსტი დაკოპირდა!");
+        } catch (err) {
+            console.error("Clipboard writeText failed:", err);
+            showNotification("error", "ტექსტის კოპირება ვერ მოხერხდა.");
+        }
+    };
+
+    const handleCopyImage = async () => {
         const imageUrl = isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl) : null;
+        if (!imageUrl) return;
 
-        if (imageUrl) {
-            try {
-                const imagePromise = new Promise<Blob>((resolve, reject) => {
-                    const img = new Image();
-                    if (!imageUrl.startsWith("data:")) {
-                        img.crossOrigin = "anonymous";
-                        img.src = imageUrl.includes("?") ? `${imageUrl}&cors` : `${imageUrl}?cors`;
-                    } else {
-                        img.src = imageUrl;
-                    }
-                    img.onload = () => {
-                        const canvas = document.createElement("canvas");
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                        const ctx = canvas.getContext("2d");
-                        if (ctx) {
-                            ctx.drawImage(img, 0, 0);
-                            canvas.toBlob((blob) => {
-                                if (blob) {
-                                    resolve(blob);
-                                } else {
-                                    reject(new Error("Canvas toBlob returned null"));
-                                }
-                            }, "image/png");
-                        } else {
-                            reject(new Error("Could not get 2d context"));
-                        }
-                    };
-                    img.onerror = () => {
-                        reject(new Error(`Failed to load image at URL: ${imageUrl}`));
-                    };
-                });
-
-                let item: ClipboardItem;
-                try {
-                    // Try Promise-based ClipboardItem (Chrome/Safari)
-                    item = new ClipboardItem({
-                        "image/png": imagePromise,
-                        "text/plain": new Blob([fullText], { type: "text/plain" })
-                    });
-                } catch {
-                    // Fallback for Firefox (Resolve Promise first)
-                    const blob = await imagePromise;
-                    item = new ClipboardItem({
-                        "image/png": blob,
-                        "text/plain": new Blob([fullText], { type: "text/plain" })
-                    });
-                }
-
-                await navigator.clipboard.write([item]);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-            } catch (err) {
-                console.error("Clipboard write failed, fallback to text:", err instanceof Error ? err.message : err);
-                try {
-                    await navigator.clipboard.writeText(fullText);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                } catch (fallbackErr) {
-                    console.error("Clipboard fallback failed:", fallbackErr);
-                }
-            }
-        } else {
-            try {
-                await navigator.clipboard.writeText(fullText);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-            } catch (err) {
-                console.error("Clipboard writeText failed:", err);
-            }
+        try {
+            const response = await fetch(imageUrl);
+            const blob = await response.blob();
+            const item = new ClipboardItem({ [blob.type || "image/png"]: blob });
+            await navigator.clipboard.write([item]);
+            showNotification("success", "სურათი დაკოპირდა!");
+        } catch (err) {
+            console.error("Image clipboard write failed:", err instanceof Error ? err.message : err);
+            showNotification("error", "სურათის კოპირება ვერ მოხერხდა.");
         }
     };
 
@@ -1002,26 +951,6 @@ export default function GeneratorTab({
                     <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">რეალური Live Preview</h2>
                     {(generatedAd || prompt.trim()) && (
                         <div className="flex gap-2 flex-wrap items-center relative animate-fade-in">
-                            {/* Copy button */}
-                            <button
-                                onClick={handleCopy}
-                                className="px-3.5 max-[500px]:px-1 min-[1023px]:max-[1110px]:px-[2.4px] py-1.5 rounded-lg border border-slate-800 bg-slate-900/60 text-slate-300 font-semibold text-xs hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer"
-                            >
-                                {copied ? (
-                                    <>✅ კოპირებულია!</>
-                                ) : (
-                                    <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" className="w-3.5 h-3.5 shrink-0">
-                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                        </svg>
-                                        კოპირება
-                                    </>
-                                )}
-                            </button>
-
-
-
                             {/* Share button */}
                             <button
                                 onClick={handleShare}
@@ -1130,6 +1059,8 @@ export default function GeneratorTab({
                                 }}
                                 userEmail={userEmail}
                                 onDownload={handleDownload}
+                                onCopyImage={handleCopyImage}
+                                onCopyText={handleCopyText}
                             />
                         </div>
                     )}
