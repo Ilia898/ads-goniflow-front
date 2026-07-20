@@ -231,7 +231,7 @@ export default function GeneratorTab({
             });
 
             try {
-                const { data } = await apiFetch(`/projects/${activeProject.id}/generate`, {
+                const { data } = await apiFetch(`/projects/${activeProject.id}/generate-text`, {
                     method: "POST",
                     body: JSON.stringify({
                         platform: plat,
@@ -245,7 +245,7 @@ export default function GeneratorTab({
                     text: data.text,
                     cta: data.cta,
                     hashtags: data.hashtags || [],
-                    imageUrl: uploadedImage || data.imageUrl || mockResult.imageUrl,
+                    imageUrl: uploadedImage || generatedAd?.imageUrl || mockResult.imageUrl,
                 };
             } catch {
                 results[plat] = {
@@ -297,12 +297,11 @@ export default function GeneratorTab({
         });
 
         try {
-            const { data } = await apiFetch(`/projects/${activeProject.id}/generate`, {
+            const { data } = await apiFetch(`/projects/${activeProject.id}/generate-image`, {
                 method: "POST",
                 body: JSON.stringify({
                     platform,
                     tone,
-                    textPrompt: prompt || undefined,
                     imagePrompt: chosenImagePrompt || undefined,
                 }),
             });
