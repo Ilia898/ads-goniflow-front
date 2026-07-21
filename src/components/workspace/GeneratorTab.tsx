@@ -192,6 +192,7 @@ export default function GeneratorTab({
             const reader = new FileReader();
             reader.onloadend = () => {
                 setUploadedImage(reader.result as string); // Local preview only
+                setGeneratedAd(generatedAd ? { ...generatedAd, imageUrl: "" } : generatedAd);
             };
             reader.readAsDataURL(file);
         }
@@ -245,12 +246,12 @@ export default function GeneratorTab({
                     text: data.text,
                     cta: data.cta,
                     hashtags: data.hashtags || [],
-                    imageUrl: uploadedImage || generatedAd?.imageUrl || mockResult.imageUrl,
+                    imageUrl: generatedAd?.imageUrl || uploadedImage || mockResult.imageUrl,
                 };
             } catch {
                 results[plat] = {
                     ...mockResult,
-                    imageUrl: uploadedImage || mockResult.imageUrl,
+                    imageUrl: generatedAd?.imageUrl || uploadedImage || mockResult.imageUrl,
                 };
             }
         }
@@ -286,16 +287,6 @@ export default function GeneratorTab({
 
         const chosenImagePrompt = imagePrompt.trim() || prompt.trim();
 
-        const mockResult = generateMockAd({
-            textPrompt: prompt,
-            imagePrompt: chosenImagePrompt,            
-            platform,
-            tone,
-            projectName: activeProject.name,
-            projectDescription: activeProject.description,
-            projectLink: activeProject.link,
-        });
-
         try {
             const { data } = await apiFetch(`/projects/${activeProject.id}/generate-image`, {
                 method: "POST",
@@ -306,6 +297,10 @@ export default function GeneratorTab({
                 }),
             });
 
+            if (!data.imageUrl) {
+                throw new Error("AI-მ სურათი ვერ დააბრუნა.");
+            }
+
             const currentAd = generatedAd || {
                 text: prompt,
                 headline: activeProject.name || "",
@@ -313,7 +308,7 @@ export default function GeneratorTab({
                 hashtags: [],
             };
 
-            const imageUrl = data.imageUrl || mockResult.imageUrl;
+            const imageUrl = data.imageUrl;
             setGeneratedAd({
                 ...currentAd,
                 imageUrl,
@@ -329,30 +324,8 @@ export default function GeneratorTab({
                 }
                 return updated;
             });
-        } catch {
-            const currentAd = generatedAd || {
-                text: prompt,
-                headline: activeProject.name || "",
-                cta: "გაიგე მეტი",
-                hashtags: [],
-            };
-
-            const imageUrl = mockResult.imageUrl;
-            setGeneratedAd({
-                ...currentAd,
-                imageUrl,
-            });
-
-            setOmnipostAds(prev => {
-                const updated = { ...prev };
-                for (const plat in updated) {
-                    updated[plat] = {
-                        ...updated[plat],
-                        imageUrl,
-                    };
-                }
-                return updated;
-            });
+        } catch (error) {
+            showNotification("error", `სურათის გენერირება ვერ მოხერხდა: ${(error as Error).message}`);
         } finally {
             setIsGeneratingImage(false);
         }
@@ -407,10 +380,10 @@ export default function GeneratorTab({
     const handleSave = async () => {
         if (!activeProject) return;
 
-        let finalImageUrl = generatedAd?.imageUrl || "";
+        let finalImageUrl = generatedAd?.imageUrl || uploadedImageUrl || "";
 
         // If user uploaded an image that hasn't been sent to Storage yet — upload now
-        if (pendingImageFile && !uploadedImageUrl) {
+        if (!finalImageUrl && pendingImageFile && !uploadedImageUrl) {
             setIsUploadingImage(true);
             try {
                 const url = await uploadImage(pendingImageFile);
@@ -422,8 +395,6 @@ export default function GeneratorTab({
                 return;
             }
             setIsUploadingImage(false);
-        } else if (uploadedImageUrl) {
-            finalImageUrl = uploadedImageUrl;
         }
 
         const finalCta = ctaType === "custom" ? customCta : ctaType;
@@ -445,9 +416,9 @@ export default function GeneratorTab({
     const handleSavePlatformAd = async (plat: string, ad: GeneratedAd) => {
         if (!activeProject) return;
 
-        let finalImageUrl = ad.imageUrl || "";
+        let finalImageUrl = ad.imageUrl || uploadedImageUrl || "";
 
-        if (pendingImageFile && !uploadedImageUrl) {
+        if (!finalImageUrl && pendingImageFile && !uploadedImageUrl) {
             setIsUploadingImage(true);
             try {
                 const url = await uploadImage(pendingImageFile);
@@ -459,8 +430,6 @@ export default function GeneratorTab({
                 return;
             }
             setIsUploadingImage(false);
-        } else if (uploadedImageUrl) {
-            finalImageUrl = uploadedImageUrl;
         }
 
         const finalCta = ctaType === "custom" ? customCta : ctaType;
@@ -494,7 +463,7 @@ export default function GeneratorTab({
     };
 
     const handleCopyImage = async () => {
-        const imageUrl = isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl) : null;
+        const imageUrl = isImageSectionOpen ? (generatedAd?.imageUrl || uploadedImage) : null;
         if (!imageUrl) return;
 
         try {
@@ -514,7 +483,7 @@ export default function GeneratorTab({
         const startTime = Date.now();
         try {
             if (typeof navigator !== 'undefined' && navigator.share) {
-                const imageUrl = isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl) : null;
+                const imageUrl = isImageSectionOpen ? (generatedAd?.imageUrl || uploadedImage) : null;
                 if (imageUrl) {
                     try {
                         const res = await fetch(imageUrl);
@@ -662,10 +631,10 @@ export default function GeneratorTab({
                         <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-700/30 text-slate-500 border border-slate-700/40">✨ ტექსტი: ცარიელი</span>
                     )}
                     <span className="text-slate-800">·</span>
-                    {uploadedImage ? (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">📸 სური.: ატვირთული</span>
-                    ) : generatedAd?.imageUrl ? (
+                    {generatedAd?.imageUrl ? (
                         <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30">🎨 სური.: გენერირებული</span>
+                    ) : uploadedImage ? (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">📸 სური.: ატვირთული</span>
                     ) : (
                         <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-700/30 text-slate-500 border border-slate-700/40">🖼️ სური.: სტოკი</span>
                     )}
@@ -1053,7 +1022,7 @@ export default function GeneratorTab({
                                     headline: generatedAd?.headline || activeProject?.name || "სარეკლამო კამპანია",
                                     text: prompt || "აქ გამოჩნდება თქვენი პოსტის ტექსტი...",
                                     cta: (ctaType === "custom" ? customCta : ctaType) || generatedAd?.cta || "გაიგე მეტი",
-                                    imageUrl: isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl || "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&auto=format&fit=crop&q=80") : "",
+                                    imageUrl: isImageSectionOpen ? (generatedAd?.imageUrl || uploadedImage || "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&auto=format&fit=crop&q=80") : "",
                                     hashtags: prompt.includes("#") ? [] : (generatedAd?.hashtags || []),
                                 }}
                                 userEmail={userEmail}
