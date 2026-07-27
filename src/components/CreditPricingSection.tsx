@@ -27,12 +27,21 @@ export default function CreditPricingSection() {
     const valueCredits = valueProduct?.credits ?? 240;
     const monthlyPromo = catalog?.monthlyPromoCredits ?? 9;
     const paymentEnabled = catalog?.payment.enabled ?? false;
+    const paymentProviderLabel: Record<"bog" | "stripe", string> = {
+        bog: "საქართველოს ბანკით გადახდა",
+        stripe: "ბარათით გადახდა",
+    };
+    const paymentNotEnabledLabel: Record<"bog" | "stripe", string> = {
+        bog: "საქართველოს ბანკის merchant მონაცემები ჯერ არ არის დამატებული",
+        stripe: "გადახდის მონაცემები ჯერ არ არის დამატებული",
+    };
+    const paymentProvider = catalog?.payment.provider ?? "bog";
 
     const handlePurchase = async (productId: string, quantity: number) => {
         setPurchasingProduct(productId);
         setPurchaseError(null);
         try {
-            const response = await apiFetch("/payments/bog/checkout", {
+            const response = await apiFetch("/payments/checkout", {
                 method: "POST",
                 headers: { "Idempotency-Key": crypto.randomUUID() },
                 body: JSON.stringify({ productId, quantity }),
@@ -59,7 +68,7 @@ export default function CreditPricingSection() {
                 disabled={!paymentEnabled || purchasingProduct !== null}
                 onClick={() => void handlePurchase(productId, quantity)}
                 className="mt-7 w-full rounded-xl border border-indigo-500/30 bg-indigo-600 px-4 py-3 text-xs font-bold text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900 disabled:text-slate-500"
-                title={paymentEnabled ? "საქართველოს ბანკით გადახდა" : "საქართველოს ბანკის merchant მონაცემები ჯერ არ არის დამატებული"}
+                title={paymentEnabled ? paymentProviderLabel[paymentProvider] : paymentNotEnabledLabel[paymentProvider]}
             >
                 {purchasingProduct === productId
                     ? "გადახდა მზადდება…"

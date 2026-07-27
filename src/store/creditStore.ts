@@ -30,7 +30,7 @@ interface CreditCatalog {
     };
     products: CreditProduct[];
     payment: {
-        provider: "bog";
+        provider: "bog" | "stripe";
         enabled: boolean;
     };
 }
