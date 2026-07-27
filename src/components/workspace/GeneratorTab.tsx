@@ -8,6 +8,10 @@ import { uploadImage } from "../../utils/uploadImage";
 import { apiFetch } from "../../utils/api";
 import { evaluateEngagement } from "../../utils/engagementEvaluator";
 
+import CreditModeSelector, { GenerationMode } from './CreditModeSelector';
+import { useCreditStore } from '../../store/creditStore';
+import PaymentReturnNotice from './PaymentReturnNotice';
+
 interface GeneratorTabProps {
     activeProject: Project | null;
     openCreateModal: () => void;
@@ -72,6 +76,8 @@ export default function GeneratorTab({
     handleCalendarUpdateEvent
 }: GeneratorTabProps) {
     const { isBackendConnected, checkBackendConnection } = useProjectStore();
+    const { balance, catalog, fetchBalance } = useCreditStore();
+    const [generationMode, setGenerationMode] = useState<GenerationMode>('standard');
 
     // AI Connection checking on mount
     useEffect(() => {
@@ -215,6 +221,11 @@ export default function GeneratorTab({
 
     const handleGenerateText = async () => {
         if (!activeProject) return;
+        const textCost = catalog?.generationCosts.text ?? 1;
+        if (balance && balance.total < textCost) {
+            showNotification('error', 'გენერაციისთვის საკმარისი კრედიტები არ გაქვთ.');
+            return;
+        }
         setIsGenerating(true);
 
         const targets = [platform]; // This will be updated to use the new multi-select state
@@ -238,6 +249,7 @@ export default function GeneratorTab({
                         platform: plat,
                         tone,
                         textPrompt: prompt || undefined,
+                        mode: generationMode,
                     }),
                 });
 
@@ -248,11 +260,12 @@ export default function GeneratorTab({
                     hashtags: data.hashtags || [],
                     imageUrl: generatedAd?.imageUrl || uploadedImage || mockResult.imageUrl,
                 };
-            } catch {
-                results[plat] = {
-                    ...mockResult,
-                    imageUrl: generatedAd?.imageUrl || uploadedImage || mockResult.imageUrl,
-                };
+                await fetchBalance();
+            } catch (error) {
+                await fetchBalance();
+                showNotification('error', (error as Error).message);
+                setIsGenerating(false);
+                return;
             }
         }
 
@@ -283,6 +296,13 @@ export default function GeneratorTab({
 
     const handleGenerateImage = async () => {
         if (!activeProject) return;
+        const imageCost = generationMode === 'premium'
+            ? catalog?.generationCosts.premiumImage ?? 5
+            : catalog?.generationCosts.standardImage ?? 2;
+        if (balance && balance.total < imageCost) {
+            showNotification('error', 'გენერაციისთვის საკმარისი კრედიტები არ გაქვთ.');
+            return;
+        }
         setIsGeneratingImage(true);
 
         const chosenImagePrompt = imagePrompt.trim() || prompt.trim();
@@ -294,6 +314,7 @@ export default function GeneratorTab({
                     platform,
                     tone,
                     imagePrompt: chosenImagePrompt || undefined,
+                    mode: generationMode,
                 }),
             });
 
@@ -327,6 +348,7 @@ export default function GeneratorTab({
         } catch (error) {
             showNotification("error", `სურათის გენერირება ვერ მოხერხდა: ${(error as Error).message}`);
         } finally {
+            await fetchBalance();
             setIsGeneratingImage(false);
         }
     };
@@ -561,6 +583,7 @@ export default function GeneratorTab({
 
     return (
         <div className="max-w-5xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start h-full">
+            <PaymentReturnNotice />
             {/* Left: Input Form */}
             <div className="glass-panel rounded-2xl p-4 sm:p-6 space-y-5 sm:space-y-6">
                 {/* ── Calendar target date banner ── */}
@@ -616,12 +639,17 @@ export default function GeneratorTab({
                                 🟢 Real AI Mode
                             </span>
                         ) : (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20" title="ბექენდი მიუწვდომელია. გამოიყენება კლიენტის მხარის AI იმიტაცია.">
-                                🟡 Offline AI Mode (Fallback)
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20" title="ბექენდი დროებით მიუწვდომელია.">
+                                🟡 AI დროებით მიუწვდომელია
                             </span>
                         )}
                     </div>
                 </div>
+
+                <CreditModeSelector
+                    mode={generationMode}
+                    onModeChange={setGenerationMode}
+                />
 
                 {/* Smart Mode Indicator */}
                 <div className="flex items-center gap-1.5 flex-wrap mt-1">
@@ -742,7 +770,7 @@ export default function GeneratorTab({
                                 გენერირდება...
                             </>
                         ) : (
-                            <>✍️ ტექსტის გენერირება</>
+                            <>✍️ ტექსტი • {catalog?.generationCosts.text ?? 1} კრ.</>
                         )}
                     </button>
                     {/* Clear Button */}
@@ -859,7 +887,11 @@ export default function GeneratorTab({
                                             გენერირდება...
                                         </>
                                     ) : (
-                                        <>🎨 გენერირება</>
+                                        <>
+                                            🎨 გენერირება • {generationMode === "premium"
+                                                ? catalog?.generationCosts.premiumImage ?? 5
+                                                : catalog?.generationCosts.standardImage ?? 2} კრ.
+                                        </>
                                     )}
                                 </button>
                             </div>
