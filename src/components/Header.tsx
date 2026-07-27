@@ -4,13 +4,20 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "../store/authStore";
+import { useCreditStore } from "../store/creditStore";
 
 export default function Header() {
-    const { isAuthenticated, isLoading, user } = useAuthStore();
+    const { isAuthenticated, isLoading } = useAuthStore();
     const pathname = usePathname();
     const router = useRouter();
 
-    const activeTier = user?.tier || "free";
+    const { balance, fetchBalance } = useCreditStore();
+
+    React.useEffect(() => {
+        if (isAuthenticated) {
+            void fetchBalance();
+        }
+    }, [isAuthenticated, fetchBalance]);
 
     const handleLogoClick = (e: React.MouseEvent) => {
         if (pathname === "/") {
@@ -99,15 +106,8 @@ export default function Header() {
                         <div className="w-8 h-8 rounded-full border-2 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
                     ) : isAuthenticated ? (
                         <div className="flex items-center gap-2.5">
-                            {/* Display Plan Badge */}
-                            <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border ${
-                                activeTier === "enterprise"
-                                    ? "bg-purple-950/40 border-purple-500/30 text-purple-400"
-                                    : activeTier === "pro"
-                                    ? "bg-indigo-950/40 border-indigo-500/30 text-indigo-400"
-                                    : "bg-slate-900/60 border-slate-800 text-slate-500"
-                            }`}>
-                                {activeTier}
+                            <span className="rounded-full border border-indigo-500/30 bg-indigo-950/40 px-2.5 py-1 text-[9px] font-black text-indigo-300">
+                                {balance?.total ?? 0} კრედიტი
                             </span>
                             <Link
                                 href="/profile"

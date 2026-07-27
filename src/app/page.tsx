@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuthStore } from "../store/authStore";
+import CreditPricingSection from "../components/CreditPricingSection";
 
 // Mock data representing the interactive preview screens
 const SIMULATED_POSTS = {
@@ -49,15 +50,11 @@ const SIMULATED_POSTS = {
 };
 
 export default function LandingPage() {
-    const { isAuthenticated, isLoading, user, updateUserTier } = useAuthStore();
+    const { isAuthenticated } = useAuthStore();
     const [selectedTab, setSelectedTab] = useState<keyof typeof SIMULATED_POSTS>("facebook");
     const [currentText, setCurrentText] = useState(SIMULATED_POSTS.facebook.text);
     const [isTyping, setIsTyping] = useState(false);
-    const [planNotification, setPlanNotification] = useState<string | null>(null);
     const [showScrollTop, setShowScrollTop] = useState(false);
-
-    // Active subscription plan
-    const activeTier = user?.tier || "free";
 
     // Track scroll positions for Scroll-to-Top Button
     useEffect(() => {
@@ -74,32 +71,29 @@ export default function LandingPage() {
 
     // Simulated typing effect when switching tabs
     useEffect(() => {
-        setIsTyping(true);
         const fullText = SIMULATED_POSTS[selectedTab].text;
         let index = 0;
-        setCurrentText("");
+        let interval: ReturnType<typeof setInterval> | undefined;
 
-        const interval = setInterval(() => {
-            if (index < fullText.length) {
-                setCurrentText((prev) => prev + fullText.charAt(index));
-                index++;
-            } else {
-                clearInterval(interval);
-                setIsTyping(false);
-            }
-        }, 12);
+        const startTimer = setTimeout(() => {
+            setIsTyping(true);
+            setCurrentText("");
+            interval = setInterval(() => {
+                if (index < fullText.length) {
+                    setCurrentText((prev) => prev + fullText.charAt(index));
+                    index++;
+                } else {
+                    clearInterval(interval);
+                    setIsTyping(false);
+                }
+            }, 12);
+        }, 0);
 
-        return () => clearInterval(interval);
+        return () => {
+            clearTimeout(startTimer);
+            if (interval) clearInterval(interval);
+        };
     }, [selectedTab]);
-
-    const handleSelectTier = (tier: "free" | "pro" | "enterprise") => {
-        if (!isAuthenticated) {
-            setPlanNotification("გთხოვთ გაიაროთ ავტორიზაცია პაკეტის შესაცვლელად.");
-            return;
-        }
-        updateUserTier(tier);
-        setPlanNotification(`🎉 პაკეტი წარმატებით განახლდა: ${tier.toUpperCase()}!`);
-    };
 
     const activePost = SIMULATED_POSTS[selectedTab];
 
@@ -347,174 +341,7 @@ export default function LandingPage() {
             </section>
 
             {/* ─── PRICING SECTION ─── */}
-            <section id="pricing" className="pb-5 md:pb-10 pt-2 md:pt-5 border-t border-slate-900 bg-slate-950/40 relative scroll-mt-16">
-                <div className="max-w-6xl mx-auto px-4">
-                    <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-                        <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest">ტარიფები</span>
-                        <h2 className="text-2xl sm:text-4xl font-extrabold">მარტივი ფასები ყველასთვის</h2>
-                        <p className="text-xs sm:text-sm text-slate-400">
-                            აირჩიეთ თქვენზე მორგებული პაკეტი და დაიწყეთ კონტენტის პროფესიონალური გენერაცია.
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-                        {/* Free Tier */}
-                        <div className={`glass-panel rounded-3xl p-8 flex flex-col justify-between border-slate-900 transition-all duration-300 ${
-                            activeTier === "free"
-                                ? "opacity-60 pointer-events-none scale-98 shadow-inner"
-                                : "hover:border-slate-800 hover:scale-[1.02] hover:shadow-2xl hover:shadow-indigo-500/[0.02]"
-                        }`}>
-                            <div className="space-y-6">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <h3 className="text-lg font-bold text-slate-200">უფასო</h3>
-                                        <p className="text-xs text-slate-500 mt-1">საწყისი ტესტირებისთვის</p>
-                                    </div>
-                                    {activeTier === "free" && (
-                                        <span className="text-[9px] font-black uppercase bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full text-slate-400">
-                                            აქტიური
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex items-baseline gap-1">
-                                    <span className="text-4xl font-black text-slate-100">0 ₾</span>
-                                    <span className="text-xs text-slate-500 font-semibold">/თვეში</span>
-                                </div>
-                                <ul className="space-y-3.5 pt-4 border-t border-slate-900">
-                                    <li className="flex items-center gap-2.5 text-xs text-slate-400">
-                                        <span className="text-indigo-400">✓</span> 5 AI გენერაცია თვეში
-                                    </li>
-                                    <li className="flex items-center gap-2.5 text-xs text-slate-400">
-                                        <span className="text-indigo-400">✓</span> ძირითადი Live Preview
-                                    </li>
-                                    <li className="flex items-center gap-2.5 text-xs text-slate-400">
-                                        <span className="text-indigo-400">✓</span> 1 აქტიური პროექტი
-                                    </li>
-                                </ul>
-                            </div>
-                            <button
-                                onClick={() => handleSelectTier("free")}
-                                disabled={activeTier === "free"}
-                                className={`w-full mt-8 py-3 text-xs font-bold rounded-xl transition-all text-center block cursor-pointer border ${
-                                    activeTier === "free"
-                                        ? "bg-slate-950 border-slate-900 text-slate-600 cursor-not-allowed"
-                                        : "bg-slate-900 hover:bg-slate-800 border-slate-800 hover:border-slate-700 text-slate-300"
-                                }`}
-                            >
-                                {activeTier === "free" ? "აქტიური პაკეტი" : "არჩევა"}
-                            </button>
-                        </div>
-
-                        {/* Pro Tier (Glowing/Recommended) */}
-                        <div className={`glass-panel rounded-3xl p-8 flex flex-col justify-between border-indigo-500/30 shadow-xl relative transition-all duration-300 ${
-                            activeTier === "pro"
-                                ? "opacity-60 pointer-events-none scale-98 border-slate-900 shadow-inner"
-                                : "hover:border-indigo-500/50 hover:scale-[1.02] hover:shadow-2xl hover:shadow-indigo-500/[0.04]"
-                        }`}>
-                            <div className="absolute top-0 right-8 transform -translate-y-1/2">
-                                <span className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-lg shadow-indigo-500/20 animate-pulse">
-                                    რეკომენდებული
-                                </span>
-                            </div>
-                            <div className="space-y-6">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <h3 className="text-lg font-bold text-slate-100">პრო (Pro)</h3>
-                                        <p className="text-xs text-indigo-400/80 mt-1">აქტიური მარკეტერებისთვის</p>
-                                    </div>
-                                    {activeTier === "pro" && (
-                                        <span className="text-[9px] font-black uppercase bg-indigo-950/30 border border-indigo-900/50 px-2 py-0.5 rounded-full text-indigo-400">
-                                            აქტიური
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex items-baseline gap-1">
-                                    <span className="text-4xl font-black text-slate-100">29 ₾</span>
-                                    <span className="text-xs text-slate-500 font-semibold">/თვეში</span>
-                                </div>
-                                <ul className="space-y-3.5 pt-4 border-t border-slate-900">
-                                    <li className="flex items-center gap-2.5 text-xs text-slate-200">
-                                        <span className="text-indigo-400 font-bold">✓</span> ულიმიტო AI გენერაცია
-                                    </li>
-                                    <li className="flex items-center gap-2.5 text-xs text-slate-200">
-                                        <span className="text-indigo-400 font-bold">✓</span> Omnipost რეჟიმი (მულტი-პოსტები)
-                                    </li>
-                                    <li className="flex items-center gap-2.5 text-xs text-slate-200">
-                                        <span className="text-indigo-400 font-bold">✓</span> სურათების AI გენერაცია
-                                    </li>
-                                    <li className="flex items-center gap-2.5 text-xs text-slate-200">
-                                        <span className="text-indigo-400 font-bold">✓</span> სრული ჩართულობის ანალიზი
-                                    </li>
-                                    <li className="flex items-center gap-2.5 text-xs text-slate-200">
-                                        <span className="text-indigo-400 font-bold">✓</span> ულიმიტო აქტიური პროექტი
-                                    </li>
-                                </ul>
-                            </div>
-                            <button
-                                onClick={() => handleSelectTier("pro")}
-                                disabled={activeTier === "pro"}
-                                className={`w-full mt-8 py-3 text-xs font-bold rounded-xl transition-all text-center block cursor-pointer border ${
-                                    activeTier === "pro"
-                                        ? "bg-slate-950 border-slate-900 text-slate-600 cursor-not-allowed"
-                                        : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20"
-                                }`}
-                            >
-                                {activeTier === "pro" ? "აქტიური პაკეტი" : "არჩევა"}
-                            </button>
-                        </div>
-
-                        {/* Enterprise Tier */}
-                        <div className={`glass-panel rounded-3xl p-8 flex flex-col justify-between border-slate-900 transition-all duration-300 ${
-                            activeTier === "enterprise"
-                                ? "opacity-60 pointer-events-none scale-98 shadow-inner"
-                                : "hover:border-slate-800 hover:scale-[1.02] hover:shadow-2xl hover:shadow-indigo-500/[0.02]"
-                        }`}>
-                            <div className="space-y-6">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <h3 className="text-lg font-bold text-slate-200">ბიზნეს</h3>
-                                        <p className="text-xs text-slate-500 mt-1">სააგენტოებისა და გუნდებისთვის</p>
-                                    </div>
-                                    {activeTier === "enterprise" && (
-                                        <span className="text-[9px] font-black uppercase bg-purple-950/30 border border-purple-900/50 px-2 py-0.5 rounded-full text-purple-400">
-                                            აქტიური
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex items-baseline gap-1">
-                                    <span className="text-4xl font-black text-slate-100">99 ₾</span>
-                                    <span className="text-xs text-slate-500 font-semibold">/თვეში</span>
-                                </div>
-                                <ul className="space-y-3.5 pt-4 border-t border-slate-900">
-                                    <li className="flex items-center gap-2.5 text-xs text-slate-400">
-                                        <span className="text-indigo-400">✓</span> ყველაფერი Pro პაკეტიდან
-                                    </li>
-                                    <li className="flex items-center gap-2.5 text-xs text-slate-400">
-                                        <span className="text-indigo-400">✓</span> გუნდური მუშაობის მხარდაჭერა
-                                    </li>
-                                    <li className="flex items-center gap-2.5 text-xs text-slate-400">
-                                        <span className="text-indigo-400">✓</span> პერსონალური ბრენდინგი
-                                    </li>
-                                    <li className="flex items-center gap-2.5 text-xs text-slate-400">
-                                        <span className="text-indigo-400">✓</span> API წვდომა და 24/7 საპორტი
-                                    </li>
-                                </ul>
-                            </div>
-                            <button
-                                onClick={() => handleSelectTier("enterprise")}
-                                disabled={activeTier === "enterprise"}
-                                className={`w-full mt-8 py-3 text-xs font-bold rounded-xl transition-all text-center block cursor-pointer border ${
-                                    activeTier === "enterprise"
-                                        ? "bg-slate-950 border-slate-900 text-slate-600 cursor-not-allowed"
-                                        : "bg-slate-900 hover:bg-slate-800 border-slate-800 hover:border-slate-700 text-slate-300"
-                                }`}
-                            >
-                                {activeTier === "enterprise" ? "აქტიური პაკეტი" : "არჩევა"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <CreditPricingSection />
 
             {/* ─── FOOTER ─── */}
             <footer className="border-t border-slate-900 py-12 bg-slate-950/90 text-slate-500 text-xs">
@@ -557,23 +384,6 @@ export default function LandingPage() {
                 </button>
             )}
 
-            {/* Plan Notification Modal */}
-            {planNotification && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-                    <div className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-950 p-6 shadow-2xl text-center space-y-4 animate-scale-in">
-                        <div className="mx-auto w-12 h-12 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-xl text-indigo-400">
-                            🚀
-                        </div>
-                        <p className="text-sm font-semibold text-slate-200">{planNotification}</p>
-                        <button
-                            onClick={() => setPlanNotification(null)}
-                            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition-colors"
-                        >
-                            გასაგებია
-                        </button>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

@@ -80,11 +80,17 @@ export default function SocialPreview({ platform, ad, userEmail, onDownload, onC
 
         {/* Image Area */}
         {ad.imageUrl && (
-          <div className="border-t border-b border-[#242526] bg-[#242526] relative group">
-            <img 
-              src={ad.imageUrl} 
-              alt="Facebook Ad Preview" 
-              className="w-full h-[240px] object-cover" 
+          <div className="border-t border-b border-[#242526] bg-[#242526] relative group aspect-square overflow-hidden">
+            <img
+              src={ad.imageUrl}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-50"
+            />
+            <img
+              src={ad.imageUrl}
+              alt="Facebook Ad Preview"
+              className="relative w-full h-full object-contain"
             />
             {(onDownload || onCopyImage) && (
               <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
@@ -159,13 +165,21 @@ export default function SocialPreview({ platform, ad, userEmail, onDownload, onC
         </div>
 
         {/* Main Post Image */}
-        <div className="relative aspect-square bg-[#121212] group">
+        <div className="relative aspect-[4/5] bg-[#121212] group overflow-hidden">
           {ad.imageUrl && (
-            <img 
-              src={ad.imageUrl} 
-              alt="Instagram Ad Preview" 
-              className="w-full h-full object-cover" 
-            />
+            <>
+              <img
+                src={ad.imageUrl}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-50"
+              />
+              <img
+                src={ad.imageUrl}
+                alt="Instagram Ad Preview"
+                className="relative w-full h-full object-contain"
+              />
+            </>
           )}
           {ad.imageUrl && (onDownload || onCopyImage) && (
             <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
@@ -305,11 +319,17 @@ export default function SocialPreview({ platform, ad, userEmail, onDownload, onC
 
         {/* Image Card */}
         {ad.imageUrl && (
-          <div className="bg-[#121619] border-t border-b border-slate-800 cursor-pointer relative group">
-            <img 
-              src={ad.imageUrl} 
-              alt="LinkedIn Ad Preview" 
-              className="w-full h-[220px] object-cover" 
+          <div className="bg-[#121619] border-t border-b border-slate-800 cursor-pointer relative group aspect-[1280/670] overflow-hidden">
+            <img
+              src={ad.imageUrl}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-50"
+            />
+            <img
+              src={ad.imageUrl}
+              alt="LinkedIn Ad Preview"
+              className="relative w-full h-full object-contain"
             />
             {(onDownload || onCopyImage) && (
               <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
@@ -414,11 +434,17 @@ export default function SocialPreview({ platform, ad, userEmail, onDownload, onC
 
         {/* Link / Image Block */}
         {ad.imageUrl && (
-          <div className="ml-13 border border-slate-800 rounded-2xl overflow-hidden bg-[#0c0d0e] cursor-pointer hover:bg-slate-900/40 transition-colors relative group">
-            <img 
-              src={ad.imageUrl} 
-              alt="X Ad Preview" 
-              className="w-full h-[200px] object-cover" 
+          <div className="ml-13 border border-slate-800 rounded-2xl overflow-hidden bg-[#0c0d0e] cursor-pointer hover:bg-slate-900/40 transition-colors relative group aspect-video">
+            <img
+              src={ad.imageUrl}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-50"
+            />
+            <img
+              src={ad.imageUrl}
+              alt="X Ad Preview"
+              className="relative w-full h-full object-contain"
             />
             {(onDownload || onCopyImage) && (
               <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">

@@ -8,6 +8,10 @@ import { uploadImage } from "../../utils/uploadImage";
 import { apiFetch } from "../../utils/api";
 import { evaluateEngagement } from "../../utils/engagementEvaluator";
 
+import CreditModeSelector, { GenerationMode } from './CreditModeSelector';
+import { useCreditStore } from '../../store/creditStore';
+import PaymentReturnNotice from './PaymentReturnNotice';
+
 interface GeneratorTabProps {
     activeProject: Project | null;
     openCreateModal: () => void;
@@ -72,6 +76,8 @@ export default function GeneratorTab({
     handleCalendarUpdateEvent
 }: GeneratorTabProps) {
     const { isBackendConnected, checkBackendConnection } = useProjectStore();
+    const { balance, catalog, fetchBalance } = useCreditStore();
+    const [generationMode, setGenerationMode] = useState<GenerationMode>('standard');
 
     // AI Connection checking on mount
     useEffect(() => {
@@ -192,6 +198,7 @@ export default function GeneratorTab({
             const reader = new FileReader();
             reader.onloadend = () => {
                 setUploadedImage(reader.result as string); // Local preview only
+                setGeneratedAd(generatedAd ? { ...generatedAd, imageUrl: "" } : generatedAd);
             };
             reader.readAsDataURL(file);
         }
@@ -214,6 +221,11 @@ export default function GeneratorTab({
 
     const handleGenerateText = async () => {
         if (!activeProject) return;
+        const textCost = catalog?.generationCosts.text ?? 1;
+        if (balance && balance.total < textCost) {
+            showNotification('error', 'გენერაციისთვის საკმარისი კრედიტები არ გაქვთ.');
+            return;
+        }
         setIsGenerating(true);
 
         const targets = [platform]; // This will be updated to use the new multi-select state
@@ -231,12 +243,13 @@ export default function GeneratorTab({
             });
 
             try {
-                const { data } = await apiFetch(`/projects/${activeProject.id}/generate`, {
+                const { data } = await apiFetch(`/projects/${activeProject.id}/generate-text`, {
                     method: "POST",
                     body: JSON.stringify({
                         platform: plat,
                         tone,
                         textPrompt: prompt || undefined,
+                        mode: generationMode,
                     }),
                 });
 
@@ -245,13 +258,14 @@ export default function GeneratorTab({
                     text: data.text,
                     cta: data.cta,
                     hashtags: data.hashtags || [],
-                    imageUrl: uploadedImage || data.imageUrl || mockResult.imageUrl,
+                    imageUrl: generatedAd?.imageUrl || uploadedImage || mockResult.imageUrl,
                 };
-            } catch {
-                results[plat] = {
-                    ...mockResult,
-                    imageUrl: uploadedImage || mockResult.imageUrl,
-                };
+                await fetchBalance();
+            } catch (error) {
+                await fetchBalance();
+                showNotification('error', (error as Error).message);
+                setIsGenerating(false);
+                return;
             }
         }
 
@@ -282,31 +296,32 @@ export default function GeneratorTab({
 
     const handleGenerateImage = async () => {
         if (!activeProject) return;
+        const imageCost = generationMode === 'premium'
+            ? catalog?.generationCosts.premiumImage ?? 5
+            : catalog?.generationCosts.standardImage ?? 2;
+        if (balance && balance.total < imageCost) {
+            showNotification('error', 'გენერაციისთვის საკმარისი კრედიტები არ გაქვთ.');
+            return;
+        }
         setIsGeneratingImage(true);
 
         const chosenImagePrompt = imagePrompt.trim() || prompt.trim();
 
-        const mockResult = generateMockAd({
-            textPrompt: prompt,
-            imagePrompt: chosenImagePrompt,            
-            platform,
-            tone,
-            projectName: activeProject.name,
-            projectDescription: activeProject.description,
-            projectLink: activeProject.link,
-        });
-
         try {
-            const { data } = await apiFetch(`/projects/${activeProject.id}/generate`, {
+            const { data } = await apiFetch(`/projects/${activeProject.id}/generate-image`, {
                 method: "POST",
                 body: JSON.stringify({
                     platform,
                     tone,
-                    textPrompt: prompt || undefined,
                     imagePrompt: chosenImagePrompt || undefined,
+                    mode: generationMode,
                 }),
             });
 
+            if (!data.imageUrl) {
+                throw new Error("AI-მ სურათი ვერ დააბრუნა.");
+            }
+
             const currentAd = generatedAd || {
                 text: prompt,
                 headline: activeProject.name || "",
@@ -314,7 +329,7 @@ export default function GeneratorTab({
                 hashtags: [],
             };
 
-            const imageUrl = data.imageUrl || mockResult.imageUrl;
+            const imageUrl = data.imageUrl;
             setGeneratedAd({
                 ...currentAd,
                 imageUrl,
@@ -330,31 +345,10 @@ export default function GeneratorTab({
                 }
                 return updated;
             });
-        } catch {
-            const currentAd = generatedAd || {
-                text: prompt,
-                headline: activeProject.name || "",
-                cta: "გაიგე მეტი",
-                hashtags: [],
-            };
-
-            const imageUrl = mockResult.imageUrl;
-            setGeneratedAd({
-                ...currentAd,
-                imageUrl,
-            });
-
-            setOmnipostAds(prev => {
-                const updated = { ...prev };
-                for (const plat in updated) {
-                    updated[plat] = {
-                        ...updated[plat],
-                        imageUrl,
-                    };
-                }
-                return updated;
-            });
+        } catch (error) {
+            showNotification("error", `სურათის გენერირება ვერ მოხერხდა: ${(error as Error).message}`);
         } finally {
+            await fetchBalance();
             setIsGeneratingImage(false);
         }
     };
@@ -408,10 +402,10 @@ export default function GeneratorTab({
     const handleSave = async () => {
         if (!activeProject) return;
 
-        let finalImageUrl = generatedAd?.imageUrl || "";
+        let finalImageUrl = generatedAd?.imageUrl || uploadedImageUrl || "";
 
         // If user uploaded an image that hasn't been sent to Storage yet — upload now
-        if (pendingImageFile && !uploadedImageUrl) {
+        if (!finalImageUrl && pendingImageFile && !uploadedImageUrl) {
             setIsUploadingImage(true);
             try {
                 const url = await uploadImage(pendingImageFile);
@@ -423,8 +417,6 @@ export default function GeneratorTab({
                 return;
             }
             setIsUploadingImage(false);
-        } else if (uploadedImageUrl) {
-            finalImageUrl = uploadedImageUrl;
         }
 
         const finalCta = ctaType === "custom" ? customCta : ctaType;
@@ -446,9 +438,9 @@ export default function GeneratorTab({
     const handleSavePlatformAd = async (plat: string, ad: GeneratedAd) => {
         if (!activeProject) return;
 
-        let finalImageUrl = ad.imageUrl || "";
+        let finalImageUrl = ad.imageUrl || uploadedImageUrl || "";
 
-        if (pendingImageFile && !uploadedImageUrl) {
+        if (!finalImageUrl && pendingImageFile && !uploadedImageUrl) {
             setIsUploadingImage(true);
             try {
                 const url = await uploadImage(pendingImageFile);
@@ -460,8 +452,6 @@ export default function GeneratorTab({
                 return;
             }
             setIsUploadingImage(false);
-        } else if (uploadedImageUrl) {
-            finalImageUrl = uploadedImageUrl;
         }
 
         const finalCta = ctaType === "custom" ? customCta : ctaType;
@@ -495,7 +485,7 @@ export default function GeneratorTab({
     };
 
     const handleCopyImage = async () => {
-        const imageUrl = isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl) : null;
+        const imageUrl = isImageSectionOpen ? (generatedAd?.imageUrl || uploadedImage) : null;
         if (!imageUrl) return;
 
         try {
@@ -515,7 +505,7 @@ export default function GeneratorTab({
         const startTime = Date.now();
         try {
             if (typeof navigator !== 'undefined' && navigator.share) {
-                const imageUrl = isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl) : null;
+                const imageUrl = isImageSectionOpen ? (generatedAd?.imageUrl || uploadedImage) : null;
                 if (imageUrl) {
                     try {
                         const res = await fetch(imageUrl);
@@ -593,6 +583,7 @@ export default function GeneratorTab({
 
     return (
         <div className="max-w-5xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start h-full">
+            <PaymentReturnNotice />
             {/* Left: Input Form */}
             <div className="glass-panel rounded-2xl p-4 sm:p-6 space-y-5 sm:space-y-6">
                 {/* ── Calendar target date banner ── */}
@@ -648,12 +639,17 @@ export default function GeneratorTab({
                                 🟢 Real AI Mode
                             </span>
                         ) : (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20" title="ბექენდი მიუწვდომელია. გამოიყენება კლიენტის მხარის AI იმიტაცია.">
-                                🟡 Offline AI Mode (Fallback)
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20" title="ბექენდი დროებით მიუწვდომელია.">
+                                🟡 AI დროებით მიუწვდომელია
                             </span>
                         )}
                     </div>
                 </div>
+
+                <CreditModeSelector
+                    mode={generationMode}
+                    onModeChange={setGenerationMode}
+                />
 
                 {/* Smart Mode Indicator */}
                 <div className="flex items-center gap-1.5 flex-wrap mt-1">
@@ -663,10 +659,10 @@ export default function GeneratorTab({
                         <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-700/30 text-slate-500 border border-slate-700/40">✨ ტექსტი: ცარიელი</span>
                     )}
                     <span className="text-slate-800">·</span>
-                    {uploadedImage ? (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">📸 სური.: ატვირთული</span>
-                    ) : generatedAd?.imageUrl ? (
+                    {generatedAd?.imageUrl ? (
                         <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30">🎨 სური.: გენერირებული</span>
+                    ) : uploadedImage ? (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">📸 სური.: ატვირთული</span>
                     ) : (
                         <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-700/30 text-slate-500 border border-slate-700/40">🖼️ სური.: სტოკი</span>
                     )}
@@ -774,7 +770,7 @@ export default function GeneratorTab({
                                 გენერირდება...
                             </>
                         ) : (
-                            <>✍️ ტექსტის გენერირება</>
+                            <>✍️ ტექსტი • {catalog?.generationCosts.text ?? 1} კრ.</>
                         )}
                     </button>
                     {/* Clear Button */}
@@ -891,7 +887,11 @@ export default function GeneratorTab({
                                             გენერირდება...
                                         </>
                                     ) : (
-                                        <>🎨 გენერირება</>
+                                        <>
+                                            🎨 გენერირება • {generationMode === "premium"
+                                                ? catalog?.generationCosts.premiumImage ?? 5
+                                                : catalog?.generationCosts.standardImage ?? 2} კრ.
+                                        </>
                                     )}
                                 </button>
                             </div>
@@ -1054,7 +1054,7 @@ export default function GeneratorTab({
                                     headline: generatedAd?.headline || activeProject?.name || "სარეკლამო კამპანია",
                                     text: prompt || "აქ გამოჩნდება თქვენი პოსტის ტექსტი...",
                                     cta: (ctaType === "custom" ? customCta : ctaType) || generatedAd?.cta || "გაიგე მეტი",
-                                    imageUrl: isImageSectionOpen ? (uploadedImage || generatedAd?.imageUrl || "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&auto=format&fit=crop&q=80") : "",
+                                    imageUrl: isImageSectionOpen ? (generatedAd?.imageUrl || uploadedImage || "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&auto=format&fit=crop&q=80") : "",
                                     hashtags: prompt.includes("#") ? [] : (generatedAd?.hashtags || []),
                                 }}
                                 userEmail={userEmail}
