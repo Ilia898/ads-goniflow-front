@@ -34,7 +34,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const currentUser = get().user;
         if (currentUser) {
             const updated = { ...currentUser, tier };
-            localStorage.setItem("goniflow_user_tier_" + currentUser.id, tier);
             set({ user: updated });
         }
     },
@@ -47,9 +46,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 body: JSON.stringify({ email, password }),
             });
             const user = res.data.user;
-            const savedTier = (typeof window !== "undefined" ? localStorage.getItem("goniflow_user_tier_" + user.id) || "free" : "free") as "free" | "pro" | "enterprise";
             set({
-                user: { ...user, tier: savedTier },
+                user: { ...user, tier: user.tier ?? "free" },
                 isAuthenticated: true,
                 isLoading: false,
             });
@@ -119,9 +117,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         try {
             const res = await apiFetch("/auth/me");
             const user = res.user;
-            const savedTier = (typeof window !== "undefined" ? localStorage.getItem("goniflow_user_tier_" + user.id) || "free" : "free") as "free" | "pro" | "enterprise";
             set({
-                user: { ...user, tier: savedTier },
+                user: { ...user, tier: user.tier ?? "free" },
                 isAuthenticated: true,
                 isLoading: false,
             });
